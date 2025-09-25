@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{{ post.title }}</h1>
+            <p class="text-muted">โดย: {{ post.organizer.email }} | วันที่จัด: {{ post.event_date|date:"d F Y, P" }}</p>
+            <hr>
+            
+            {% if post.image %}
+                <img src="{{ post.image.url }}" class="img-fluid mb-4" alt="{{ post.title }}">
+            {% endif %}
+
+            <h4>รายละเอียดกิจกรรม</h4>
+            <p>{{ post.description|linebreaks }}</p>
+
+            <h4>สถานที่</h4>
+            <p>{{ post.location }}</p>
+
+            <h4>จำนวนที่รับสมัคร</h4>
+            <p>{{ post.slots_available }} คน</p>
+        </div>
+    </div>
+    <a href="{% url 'home' %}" class="btn btn-secondary mt-4">กลับไปหน้าหลัก</a>
+</div>
+{% endblock %}

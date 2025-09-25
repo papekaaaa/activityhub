@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Hub</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding-top: 70px; /* เพิ่ม padding ด้านบนเท่ากับความสูงของ navbar */
+        }
+        main {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    {% include 'partials/navbar.html' %}
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+    
+</body>
+</html>

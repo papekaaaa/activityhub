@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* คุณสามารถใช้ CSS เดิมของหน้า login ได้เลย */
+    .login-container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 300px; margin: 50px auto; }
+    .login-container h2 { text-align: center; margin-bottom: 1.5rem; }
+    /* ... (CSS อื่นๆ) ... */
+</style>
+
+<div class="login-container">
+    <h2>Approver Login</h2>
+    
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li style="color:red;">{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Login</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>แดชบอร์ดสำหรับผู้อนุมัติ</h2>
+    <p>รายการกิจกรรมที่รอการอนุมัติ</p>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ชื่อกิจกรรม</th>
+                <th>ผู้สร้าง</th>
+                <th>จัดการ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in pending_posts %}
+            <tr>
+                <td>{{ post.title }}</td>
+                <td>{{ post.organizer.email }}</td>
+                <td>
+                    <form action="{% url 'approve_post' post.id %}" method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">อนุมัติ</button>
+                    </form>
+                    <form action="{% url 'reject_post' post.id %}" method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm">ไม่อนุมัติ</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="text-center">ไม่มีกิจกรรมที่รอการอนุมัติ</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
