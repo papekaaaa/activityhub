@@ -23,7 +23,7 @@ urlpatterns = [
     path('',include('home.urls')),
     path('approver/', include('approver.urls')),
     path('post/', include('post.urls')),
-
+    path('user/', include('users.urls')),
 ]
 
 from django.conf import settings            

@@ -3,29 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Activity Hub</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <title>{% block title %}Activity Hub{% endblock %}</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
     <style>
         body {
-            font-family: sans-serif;
-            background-color: #f8f9fa;
-            margin: 0;
-            padding-top: 70px; /* เพิ่ม padding ด้านบนเท่ากับความสูงของ navbar */
-        }
-        main {
-            padding: 20px;
+            background-color: #f8f9fa; /* สีพื้นหลังเทาอ่อน */
+            padding-top: 65px; /* กันพื้นที่สำหรับ Navbar */
         }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
 
     {% include 'partials/navbar.html' %}
 
-    <main>
+    <main class="container py-4">
+        
+        {% if messages %}
+            <div class="mb-4">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
         {% block content %}
         {% endblock %}
+
     </main>
     
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

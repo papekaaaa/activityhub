@@ -89,13 +89,18 @@
             <i class="fa-regular fa-comment navbar-icon"></i>
 
             <div class="navbar-user">
-                <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
-                <div class="navbar-logout-section">
-                    <a href="{% url 'logout' %}">
-                        <i class="fa-solid fa-arrow-right-from-bracket navbar-icon"></i>
-                    </a>
-                    <span>{{ user.email|truncatechars:15 }}</span>
-                </div>
+                <a href="{% url 'profile' %}" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.7rem;">
+                    
+                    <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
+                    
+                    <div class="navbar-logout-section">
+                        <span>{{ user.email|truncatechars:15 }}</span>
+                    </div>
+                </a>
+
+                <a href="{% url 'logout' %}" title="ออกจากระบบ">
+                    <i class="fa-solid fa-arrow-right-from-bracket navbar-icon"></i>
+                </a>
             </div>
 
         {% else %}
