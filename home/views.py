@@ -14,7 +14,7 @@ def home_view(request):
 
 
 # View สำหรับหน้ารายละเอียด (ต้อง Login)
-@login_required # 3. บังคับให้ต้อง Login ก่อนเข้าถึง View นี้
+@login_required # บังคับให้ต้อง Login ก่อนเข้าถึง View 
 def post_detail_view(request, post_id):
     # 4. ดึงข้อมูลโพสต์ตาม id ที่ส่งมา ถ้าไม่เจอจะแสดงหน้า 404 Not Found
     post = get_object_or_404(Post, id=post_id)

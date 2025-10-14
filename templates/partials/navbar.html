@@ -1,84 +1,145 @@
-{% load static %} <style></style>
+{% load static %}
 <style>
-    .navbar {
-        background-color: #ffffff;
-        border-bottom: 1px solid #e7e7e7;
-        padding: 0.5rem 2rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    /* กล่อง navbar แบบเต็มจอ */
+    .navbar-full {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
-        box-sizing: border-box;
-        height: 65px;
+        background-color: #ffffff;
+        border-bottom: 1px solid #e7e7e7;
+        box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+        padding: 0.6rem 3rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        height: 70px;
         z-index: 1000;
+        transition: all 0.3s ease;
     }
+
+    /* เมื่อ scroll จะเพิ่มเงาเข้ม */
+    .navbar-scrolled {
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.15);
+    }
+
+    /* ซ้ายโลโก้ */
     .navbar-left {
         display: flex;
         align-items: center;
+        gap: 0.8rem;
     }
+
     .navbar-logo {
         width: 40px;
         height: 40px;
-        margin-right: 1rem;
+        object-fit: cover;
     }
+
     .navbar-brand {
         font-size: 1.5rem;
         font-weight: bold;
         color: #333;
     }
+
+    /* ขวา */
     .navbar-right {
         display: flex;
         align-items: center;
         gap: 1rem;
     }
+
     .navbar-icon {
         font-size: 1.5rem;
         color: #555;
+        cursor: pointer;
+        transition: color 0.2s;
     }
+
+    .navbar-icon:hover {
+        color: #007bff;
+    }
+
+    /* ส่วนโปรไฟล์ */
     .navbar-user {
         display: flex;
         align-items: center;
         gap: 0.7rem;
     }
+
     .navbar-user-pic {
         width: 40px;
         height: 40px;
         border-radius: 50%;
         object-fit: cover;
+        border: 2px solid #ddd;
     }
+
     .navbar-logout-section {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
         color: #555;
+        font-size: 0.9rem;
     }
+
     .navbar-logout-section a {
         color: inherit;
         text-decoration: none;
     }
+
+    /* ปุ่ม Login / Register */
     .btn {
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 1.2rem;
+        border-radius: 10px;
+        font-weight: 600;
         text-decoration: none;
-        border-radius: 5px;
-        font-weight: bold;
-        text-align: center;
+        transition: all 0.2s ease-in-out;
+        border: 1.8px solid transparent;
     }
+
     .btn-login {
         background-color: #007bff;
         color: white;
+        border-color: #007bff;
     }
+
+    .btn-login:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
+
     .btn-register {
         background-color: #ffffff;
         color: #007bff;
-        border: 1px solid #007bff;
+        border-color: #007bff;
+    }
+
+    .btn-register:hover {
+        background-color: #007bff;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .navbar-full {
+            padding: 0.5rem 1rem;
+            height: auto;
+            flex-wrap: wrap;
+        }
+
+        .navbar-brand {
+            font-size: 1.2rem;
+        }
+
+        .btn {
+            padding: 0.4rem 0.9rem;
+            font-size: 0.9rem;
+        }
     }
 </style>
 
-<nav class="navbar">
-
+<!-- Navbar -->
+<nav class="navbar-full" id="navbarContainer">
     <div class="navbar-left">
         <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo" class="navbar-logo">
         <div class="navbar-brand">Activity Hub</div>
@@ -86,14 +147,12 @@
 
     <div class="navbar-right">
         {% if user.is_authenticated %}
-            <i class="fa-regular fa-bell navbar-icon"></i>
-            <i class="fa-regular fa-comment navbar-icon"></i>
+            <i class="fa-regular fa-bell navbar-icon" title="แจ้งเตือน"></i>
+            <i class="fa-regular fa-comment navbar-icon" title="แชท"></i>
 
             <div class="navbar-user">
-                <a href="{% url 'profile' %}" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.7rem;">
-                    
+                <a href="{% url 'profile' %}" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.6rem;">
                     <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
-                    
                     <div class="navbar-logout-section">
                         <span>{{ user.email|truncatechars:15 }}</span>
                     </div>
@@ -103,10 +162,21 @@
                     <i class="fa-solid fa-arrow-right-from-bracket navbar-icon"></i>
                 </a>
             </div>
-
         {% else %}
-            <a href="{% url 'login' %}" class="btn btn-login">Login</a>
-            <a href="{% url 'register' %}" class="btn btn-register">Register</a>
+            <a href="{% url 'login' %}" class="btn btn-login">เข้าสู่ระบบ</a>
+            <a href="{% url 'register' %}" class="btn btn-register">ลงทะเบียน</a>
         {% endif %}
     </div>
 </nav>
+
+<script>
+    // เพิ่มเงาเข้มเมื่อ scroll
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('navbarContainer');
+        if (window.scrollY > 10) {
+            nav.classList.add('navbar-scrolled');
+        } else {
+            nav.classList.remove('navbar-scrolled');
+        }
+    });
+</script>
