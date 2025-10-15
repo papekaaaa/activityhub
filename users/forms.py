@@ -17,8 +17,19 @@ class ProfileUpdateForm(forms.ModelForm):
             'birth_date',
             'phone_number',
             'address',
+            'gender',
+            'phone',
             'contact_info'
         ]
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            'gender': forms.Select(choices=[('ชาย', 'ชาย'), ('หญิง', 'หญิง'), ('อื่นๆ', 'อื่นๆ')]),
         }
+
+from django import forms
+from .models import Profile
+from django.contrib.auth.models import User
+
+
+
+

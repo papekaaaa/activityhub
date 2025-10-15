@@ -68,6 +68,14 @@ class Profile(models.Model):
     phone_number = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     contact_info = models.CharField(max_length=255, blank=True, help_text="เช่น Line ID, Facebook")
+    email = models.EmailField(blank=True, null=True)
+    gender = models.CharField(
+        max_length=10,
+        choices=[('ชาย', 'ชาย'), ('หญิง', 'หญิง'), ('อื่นๆ', 'อื่นๆ')],
+        blank=True
+    )
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.TextField(blank=True)
     
     def __str__(self):
         return f'{self.user.email} Profile'
