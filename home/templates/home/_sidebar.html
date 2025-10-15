@@ -1,0 +1,21 @@
+<div class="list-group rounded-3 shadow-sm">
+    {% for key, label in categories %}
+        <a href="{% url 'home:home_category' key %}"
+           class="list-group-item list-group-item-action 
+                  {% if selected_category == key %}active{% endif %}">
+            {{ label }}
+        </a>
+    {% endfor %}
+</div>
+
+<style>
+.list-group-item.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+.list-group-item {
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+</style>

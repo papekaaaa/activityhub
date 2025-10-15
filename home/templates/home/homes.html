@@ -2,111 +2,140 @@
 {% load static %}
 
 {% block content %}
-<div class="container py-4" style="max-width: 900px;">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">กิจกรรมล่าสุด</h2>
-        {% if user.is_authenticated %}
-            <a href="{% url 'post:create_post' %}" class="btn btn-success rounded-pill px-4 fw-semibold">
-                <i class="fa-solid fa-plus"></i> โพสต์กิจกรรม
-            </a>
-        {% endif %}
-    </div>
-
-    {% for post in posts %}
-    <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
-        <!-- ส่วนหัว -->
-        <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between px-3 pt-3">
-            <div class="d-flex align-items-center">
-                {% if post.organizer.profile.profile_picture %}
-                    <img src="{{ post.organizer.profile.profile_picture.url }}" 
-                         alt="Profile" 
-                         class="rounded-circle me-2" 
-                         width="45" height="45"
-                         style="object-fit: cover;">
-                {% else %}
-                    <img src="{% static 'images/default_profile.png' %}" 
-                         alt="Profile" 
-                         class="rounded-circle me-2" 
-                         width="45" height="45"
-                         style="object-fit: cover;">
+<div class="container mt-4">
+    <div class="row">
+        <!-- Sidebar -->
+        <div class="col-md-3 mb-4">
+            <div class="list-group shadow-sm">
+                {% for category in categories %}
+                    <a href="?category={{ category }}"
+                       class="list-group-item list-group-item-action {% if category == selected_category %}active{% endif %}">
+                        {{ category }}
+                    </a>
+                {% endfor %}
+                {% if selected_category %}
+                    <a href="{% url 'home' %}" class="list-group-item list-group-item-action text-danger fw-semibold">
+                        <i class="fa-solid fa-xmark"></i> ล้างตัวกรอง
+                    </a>
                 {% endif %}
-                <div>
-                    <h6 class="mb-0 fw-bold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</h6>
-                    <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="col-md-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="fw-bold">
+                    {% if selected_category %}
+                        {{ selected_category }}
+                    {% else %}
+                        กิจกรรมล่าสุด
+                    {% endif %}
+                </h2>
+                {% if user.is_authenticated %}
+                    <a href="{% url 'post:create_post' %}" class="btn btn-success rounded-pill px-4 fw-semibold">
+                        <i class="fa-solid fa-plus"></i> โพสต์กิจกรรม
+                    </a>
+                {% endif %}
+            </div>
+
+            {% for post in posts %}
+                <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
+                    <!-- ส่วนหัว -->
+                    <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between px-3 pt-3">
+                        <div class="d-flex align-items-center">
+                            {% if post.organizer.profile.profile_picture %}
+                                <img src="{{ post.organizer.profile.profile_picture.url }}"
+                                     class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
+                            {% else %}
+                                <img src="{% static 'images/default_profile.png' %}"
+                                     class="rounded-circle me-2" width="45" height="45" style="object-fit: cover;">
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-0 fw-bold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</h6>
+                                <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm">
+                            <i class="fa-regular fa-user-plus"></i> ติดตาม
+                        </button>
+                    </div>
+
+                    <!-- รูปกิจกรรม -->
+                    {% if post.image %}
+                        <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}"
+                             style="object-fit: cover; max-height: 420px;">
+                    {% endif %}
+
+                    <!-- เนื้อหา -->
+                    <div class="card-body">
+                        <h5 class="fw-bold">{{ post.title }}</h5>
+                        <p class="text-muted mb-1">📅 {{ post.event_date|date:"j F Y" }}</p>
+                        <p class="text-muted mb-2">📍 {{ post.location }}</p>
+                        <p>{{ post.description|truncatechars:150 }}</p>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'post:post_detail' post.id %}" class="btn btn-outline-primary btn-sm">ดูรายละเอียด</a>
+                            <span class="badge bg-light text-dark">{{ post.category }}</span>
+                        </div>
+                    </div>
+
+                    <!-- ส่วนท้าย -->
+                    <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center text-muted pb-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <i class="fa-regular fa-heart fs-5"></i>
+                            <i class="fa-regular fa-bookmark fs-5"></i>
+                            <i class="fa-solid fa-share-nodes fs-5"></i>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm">
-                <i class="fa-regular fa-user-plus"></i> ติดตาม
-            </button>
-        </div>
-
-        <!-- รูปกิจกรรม -->
-        {% if post.image %}
-        <div class="post-image">
-            <img src="{{ post.image.url }}" 
-                 class="img-fluid w-100" 
-                 alt="{{ post.title }}" 
-                 style="object-fit: cover; max-height: 420px;">
-        </div>
-        {% endif %}
-
-        <!-- เนื้อหา -->
-        <div class="card-body">
-            <h5 class="fw-bold mb-2">{{ post.title }}</h5>
-            <p class="text-muted mb-1">📅 วันที่: {{ post.event_date|date:"j F Y" }}</p>
-            <p class="text-muted mb-2">📍 สถานที่: {{ post.location }}</p>
-            <p class="mb-3">{{ post.description|truncatechars:150 }}</p>
-
-            <div class="d-flex justify-content-between align-items-center">
-                <a href="{% url 'post:post_detail' post.id %}" class="text-decoration-none fw-semibold text-primary">
-                    คลิกเพื่อดูคำอธิบายทั้งหมด
-                </a>
-                <button class="btn btn-success px-4 fw-semibold rounded-pill">สมัคร</button>
-            </div>
-        </div>
-
-        <!-- ส่วนท้าย -->
-        <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center text-muted pb-3">
-            <div class="d-flex align-items-center gap-3">
-                <i class="fa-regular fa-heart fs-5"></i>
-                <i class="fa-regular fa-bookmark fs-5"></i>
-                <i class="fa-solid fa-share-nodes fs-5"></i>
-            </div>
+            {% empty %}
+                <div class="text-center py-5 text-muted">
+                    <h5>ยังไม่มีกิจกรรมในหมวดนี้</h5>
+                </div>
+            {% endfor %}
         </div>
     </div>
-    {% empty %}
-        <div class="text-center py-5 text-muted">
-            <h5>ยังไม่มีกิจกรรมที่ได้รับการอนุมัติในขณะนี้</h5>
-        </div>
-    {% endfor %}
 </div>
 
 <style>
-    .card {
-        border-radius: 16px;
-        overflow: hidden;
-        background-color: #fff;
-        transition: box-shadow 0.3s ease, transform 0.2s ease;
-    }
-    .card:hover {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-        transform: translateY(-3px);
-    }
-    .post-image img {
-        transition: transform 0.3s ease;
-    }
-    .post-image img:hover {
-        transform: scale(1.02);
-    }
-    .fa-regular, .fa-solid {
-        cursor: pointer;
-        transition: color 0.2s ease;
-    }
-    .fa-regular:hover, .fa-solid:hover {
-        color: #007bff;
-    }
-    .btn-success {
-        border-radius: 10px;
-    }
+.list-group-item.active {
+    background-color: #0d6efd;
+    color: white;
+    font-weight: 600;
+}
+.list-group-item {
+    border: none;
+    margin-bottom: 5px;
+    border-radius: 6px;
+}
+.list-group-item:hover {
+    background-color: #f0f8ff;
+}
+.card {
+    border-radius: 16px;
+    overflow: hidden;
+    background-color: #fff;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+.card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px);
+}
+.post-image img {
+    transition: transform 0.3s ease;
+}
+.post-image img:hover {
+    transform: scale(1.02);
+}
+.fa-regular, .fa-solid {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+.fa-regular:hover, .fa-solid:hover {
+    color: #007bff;
+}
+.btn-success {
+    border-radius: 10px;
+}
 </style>
 {% endblock %}
