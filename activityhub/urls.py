@@ -38,26 +38,14 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    # ระบบแอดมินของ Django
     path('admin/', admin.site.urls),
-
-    # โมดูลการล็อกอิน / สมัครสมาชิก
     path('users/', include('login_register.urls')),
-
-    # หน้าแรกของเว็บไซต์
     path('', include('home.urls')),
-
-    # ระบบอนุมัติ (Approver)
     path('approver/', include('approver.urls')),
-
-    # ระบบโพสต์กิจกรรม
     path('post/', include(('post.urls', 'post'), namespace='post')),
-
-    # โปรไฟล์และระบบผู้ใช้
     path('user/', include('users.urls')),
 ]
 
-# เส้นทางสำหรับแสดงไฟล์สื่อ (Media)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

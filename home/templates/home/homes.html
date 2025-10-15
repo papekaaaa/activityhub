@@ -23,21 +23,47 @@
 
         <!-- Main content -->
         <div class="col-md-9">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2 class="fw-bold">
+
+            <!-- ส่วนหัว: ช่องค้นหา + ไอคอนลัด -->
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+                <h2 class="fw-bold mb-2 mb-md-0">
                     {% if selected_category %}
                         {{ selected_category }}
                     {% else %}
                         กิจกรรมล่าสุด
                     {% endif %}
                 </h2>
-                {% if user.is_authenticated %}
-                    <a href="{% url 'post:create_post' %}" class="btn btn-success rounded-pill px-4 fw-semibold">
-                        <i class="fa-solid fa-plus"></i> โพสต์กิจกรรม
-                    </a>
-                {% endif %}
+
+                <div class="d-flex align-items-center gap-3">
+                    <!-- ช่องค้นหา -->
+                    <form method="get" action="." class="d-flex align-items-center me-2">
+                        <div class="input-group rounded-pill border bg-white shadow-sm">
+                            <input type="text" name="search" class="form-control border-0 ps-3" placeholder="ค้นหากิจกรรม">
+                            <button class="btn btn-light border-0 pe-3" type="submit">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if user.is_authenticated %}
+                        <!-- ไอคอนลัด -->
+                        <a href="{% url 'home' %}" class="text-dark fs-5" title="หน้าหลัก">
+                            <i class="fa-solid fa-house"></i>
+                        </a>
+                        <a href="{% url 'post:liked_posts' %}" class="text-dark fs-5" title="กิจกรรมที่ถูกใจ">
+                            <i class="fa-regular fa-heart"></i>
+                        </a>
+                        <a href="{% url 'post:saved_posts' %}" class="text-dark fs-5" title="กิจกรรมที่บันทึกไว้">
+                            <i class="fa-regular fa-bookmark"></i>
+                        </a>
+                        <a href="{% url 'post:create_post' %}" class="btn btn-success rounded-pill px-4 fw-semibold">
+                            <i class="fa-solid fa-plus"></i> โพสต์กิจกรรม
+                        </a>
+                    {% endif %}
+                </div>
             </div>
 
+            <!-- ลิสต์กิจกรรม -->
             {% for post in posts %}
                 <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
                     <!-- ส่วนหัว -->
@@ -82,8 +108,31 @@
                     <!-- ส่วนท้าย -->
                     <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center text-muted pb-3">
                         <div class="d-flex align-items-center gap-3">
-                            <i class="fa-regular fa-heart fs-5"></i>
-                            <i class="fa-regular fa-bookmark fs-5"></i>
+
+                            {% if user.is_authenticated %}
+                                <!-- ปุ่มถูกใจ -->
+                                <button class="btn btn-link p-0 like-btn" data-id="{{ post.id }}" aria-label="like">
+                                    {% if user in post.likes.all %}
+                                        <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
+                                    {% else %}
+                                        <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
+                                    {% endif %}
+                                </button>
+                                <small id="like-count-{{ post.id }}">{{ post.likes.count }}</small>
+
+                                <!-- ปุ่มจัดเก็บ -->
+                                <button class="btn btn-link p-0 save-btn" data-id="{{ post.id }}" aria-label="save">
+                                    {% if user in post.saves.all %}
+                                        <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
+                                    {% else %}
+                                        <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
+                                    {% endif %}
+                                </button>
+                            {% else %}
+                                <i class="far fa-heart fs-5" title="เข้าสู่ระบบเพื่อกดถูกใจ"></i>
+                                <i class="far fa-bookmark fs-5" title="เข้าสู่ระบบเพื่อจัดเก็บ"></i>
+                            {% endif %}
+
                             <i class="fa-solid fa-share-nodes fs-5"></i>
                         </div>
                     </div>
@@ -98,6 +147,7 @@
 </div>
 
 <style>
+/* Sidebar */
 .list-group-item.active {
     background-color: #0d6efd;
     color: white;
@@ -111,6 +161,8 @@
 .list-group-item:hover {
     background-color: #f0f8ff;
 }
+
+/* Card */
 .card {
     border-radius: 16px;
     overflow: hidden;
@@ -121,12 +173,8 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     transform: translateY(-3px);
 }
-.post-image img {
-    transition: transform 0.3s ease;
-}
-.post-image img:hover {
-    transform: scale(1.02);
-}
+
+/* ปุ่มและไอคอน */
 .fa-regular, .fa-solid {
     cursor: pointer;
     transition: color 0.2s ease;
@@ -137,5 +185,68 @@
 .btn-success {
     border-radius: 10px;
 }
+.btn.btn-link.p-0 i {
+    transition: transform .12s ease, opacity .12s ease;
+}
+.btn.btn-link.p-0:hover i {
+    transform: scale(1.15);
+    opacity: .8;
+}
+
+/* ช่องค้นหา */
+.input-group input {
+  border-radius: 50px 0 0 50px;
+  box-shadow: none !important;
+}
+.input-group button {
+  border-radius: 0 50px 50px 0;
+  background: transparent;
+}
+.input-group {
+  max-width: 280px;
+}
+.text-dark.fs-5 i {
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+.text-dark.fs-5 i:hover {
+  color: #0d6efd;
+  transform: scale(1.1);
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // LIKE
+    document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const res = await fetch(`/post/${id}/toggle-like/`, {
+                method: 'POST',
+                headers: {'X-CSRFToken': window.CSRF_TOKEN}
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const icon = document.getElementById(`like-icon-${id}`);
+            const count = document.getElementById(`like-count-${id}`);
+            icon.className = data.liked ? 'fas fa-heart fs-5 text-danger' : 'far fa-heart fs-5';
+            if (count) count.textContent = data.likes_count;
+        });
+    });
+
+    // SAVE
+    document.querySelectorAll('.save-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const id = btn.dataset.id;
+            const res = await fetch(`/post/${id}/toggle-save/`, {
+                method: 'POST',
+                headers: {'X-CSRFToken': window.CSRF_TOKEN}
+            });
+            if (!res.ok) return;
+            const data = await res.json();
+            const icon = document.getElementById(`save-icon-${id}`);
+            icon.className = data.saved ? 'fas fa-bookmark fs-5 text-primary' : 'far fa-bookmark fs-5';
+        });
+    });
+});
+</script>
 {% endblock %}

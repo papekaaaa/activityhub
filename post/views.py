@@ -88,11 +88,11 @@
 #         form = PostForm()
 #     return render(request, 'post/create_post.html', {'form': form})
 
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponseForbidden
+from django.http import HttpResponseForbidden, JsonResponse
+from django.views.decorators.http import require_POST
 from .models import Post
 from .forms import PostForm
 
@@ -105,17 +105,14 @@ def create_post(request):
         form = PostForm(request.POST, request.FILES)
         if form.is_valid():
             post = form.save(commit=False)
-            post.organizer = request.user  # ผู้สร้างคือคนที่ล็อกอินอยู่
+            post.organizer = request.user
             post.save()
             messages.success(request, 'สร้างกิจกรรมของคุณเรียบร้อยแล้ว และได้ส่งไปเพื่อรอการอนุมัติ')
-            return redirect('profile')  # กลับไปหน้าโปรไฟล์ (หรือหน้า home ถ้าต้องการ)
+            return redirect('profile')
     else:
         form = PostForm()
 
-    context = {
-        'form': form,
-        'title': 'สร้างกิจกรรมใหม่'
-    }
+    context = {'form': form, 'title': 'สร้างกิจกรรมใหม่'}
     return render(request, 'post/post_form.html', context)
 
 
@@ -125,7 +122,6 @@ def create_post(request):
 @login_required
 def post_update_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    # ตรวจสอบสิทธิ์ให้แก้ไขได้เฉพาะเจ้าของ
     if post.organizer != request.user:
         return HttpResponseForbidden("คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้")
 
@@ -134,15 +130,11 @@ def post_update_view(request, post_id):
         if form.is_valid():
             form.save()
             messages.success(request, 'กิจกรรมของคุณได้รับการอัปเดตแล้ว!')
-            return redirect('post_detail', post_id=post.id)
+            return redirect('post:post_detail', post_id=post.id)
     else:
         form = PostForm(instance=post)
 
-    context = {
-        'form': form,
-        'title': 'แก้ไขกิจกรรม'
-    }
-    return render(request, 'post/post_form.html', context)
+    return render(request, 'post/post_form.html', {'form': form, 'title': 'แก้ไขกิจกรรม'})
 
 
 # ------------------------------
@@ -151,7 +143,6 @@ def post_update_view(request, post_id):
 @login_required
 def post_delete_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    # ตรวจสอบสิทธิ์ให้ลบได้เฉพาะเจ้าของ
     if post.organizer != request.user:
         return HttpResponseForbidden("คุณไม่มีสิทธิ์ลบกิจกรรมนี้")
 
@@ -160,10 +151,7 @@ def post_delete_view(request, post_id):
         messages.success(request, 'กิจกรรมของคุณถูกลบเรียบร้อยแล้ว')
         return redirect('profile')
 
-    context = {
-        'post': post
-    }
-    return render(request, 'post/post_confirm_delete.html', context)
+    return render(request, 'post/post_confirm_delete.html', {'post': post})
 
 
 # ------------------------------
@@ -171,7 +159,56 @@ def post_delete_view(request, post_id):
 # ------------------------------
 def post_detail_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    context = {
-        'post': post
-    }
-    return render(request, 'post/post_detail.html', context)
+    return render(request, 'post/post_detail.html', {'post': post})
+
+
+# ------------------------------
+# ✅ ระบบ Toggle ถูกใจ / จัดเก็บ
+# ------------------------------
+@login_required
+@require_POST
+def toggle_like(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    user = request.user
+    if user in post.likes.all():
+        post.likes.remove(user)
+        liked = False
+    else:
+        post.likes.add(user)
+        liked = True
+    return JsonResponse({'liked': liked, 'likes_count': post.likes.count()})
+
+
+@login_required
+@require_POST
+def toggle_save(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    user = request.user
+    if user in post.saves.all():
+        post.saves.remove(user)
+        saved = False
+    else:
+        post.saves.add(user)
+        saved = True
+    return JsonResponse({'saved': saved, 'saves_count': post.saves.count()})
+
+# ------------------------------
+# ฟังก์ชัน: แสดงกิจกรรมที่ถูกใจและบันทึกไว้
+# ------------------------------
+from django.contrib.auth import get_user_model
+User = get_user_model()
+
+@login_required
+def liked_posts_view(request):
+    """แสดงกิจกรรมที่ผู้ใช้กดถูกใจ"""
+    liked_posts = request.user.liked_posts.all().order_by('-created_at')
+    context = {'posts': liked_posts, 'title': 'กิจกรรมที่กดถูกใจ ❤️'}
+    return render(request, 'post/liked_posts.html', context)
+
+
+@login_required
+def saved_posts_view(request):
+    """แสดงกิจกรรมที่ผู้ใช้บันทึกไว้"""
+    saved_posts = request.user.saved_posts.all().order_by('-created_at')
+    context = {'posts': saved_posts, 'title': 'กิจกรรมที่บันทึกไว้ 🔖'}
+    return render(request, 'post/saved_posts.html', context)

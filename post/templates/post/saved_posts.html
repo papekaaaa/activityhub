@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="fw-bold mb-4">{{ title }}</h2>
+
+  {% if posts %}
+    <div class="row">
+      {% for post in posts %}
+        <div class="col-md-6 mb-4">
+          <div class="card shadow-sm border-0 h-100" style="border-radius: 16px;">
+            {% if post.image %}
+              <img src="{{ post.image.url }}" class="card-img-top" style="height: 220px; object-fit: cover;">
+            {% endif %}
+            <div class="card-body">
+              <h5 class="fw-bold">{{ post.title }}</h5>
+              <p class="text-muted mb-1">📅 {{ post.event_date|date:"j F Y" }}</p>
+              <p class="text-muted mb-2">📍 {{ post.location }}</p>
+              <p>{{ post.description|truncatechars:120 }}</p>
+              <a href="{% url 'post:post_detail' post.id %}" class="btn btn-outline-primary btn-sm">ดูรายละเอียด</a>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="fa-regular fa-bookmark fa-2x mb-3"></i>
+      <p>ยังไม่มีกิจกรรมที่คุณบันทึกไว้</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

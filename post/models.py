@@ -66,11 +66,10 @@
 #         return self.title
 
 from django.db import models
-from users.models import User  # ใช้ CustomUser ของคุณ
+from django.conf import settings  # ✅ รองรับ CustomUser
 
 class Post(models.Model):
 
-    # --- ประเภทกิจกรรม ---
     CATEGORY_CHOICES = [
         ("จิตอาสาด้านสาธารณประโยชน์", "จิตอาสาด้านสาธารณประโยชน์"),
         ("จิตอาสาด้านการศึกษา", "จิตอาสาด้านการศึกษา"),
@@ -84,13 +83,11 @@ class Post(models.Model):
         ("กิจกรรมรณรงค์/ประกวด", "กิจกรรมรณรงค์/ประกวด"),
     ]
 
-    # --- สถานะการอนุมัติ ---
     class Status(models.TextChoices):
         PENDING = 'PENDING', 'รออนุมัติ'
         APPROVED = 'APPROVED', 'อนุมัติแล้ว'
         REJECTED = 'REJECTED', 'ไม่อนุมัติ'
 
-    # --- ข้อมูลหลักของกิจกรรม ---
     title = models.CharField(max_length=200, verbose_name="ชื่อกิจกรรม")
     description = models.TextField(verbose_name="รายละเอียดกิจกรรม")
     location = models.CharField(max_length=255, verbose_name="สถานที่")
@@ -98,20 +95,29 @@ class Post(models.Model):
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, verbose_name="ประเภทกิจกรรม")
     slots_available = models.PositiveIntegerField(verbose_name="จำนวนที่รับสมัคร")
 
-    # --- ไฟล์และสื่อ ---
     image = models.ImageField(upload_to='activity_images/', null=True, blank=True, verbose_name="รูปภาพกิจกรรม")
     schedule = models.FileField(upload_to='schedules/', null=True, blank=True, verbose_name="กำหนดการ (ไฟล์)")
 
-    # --- ตำแหน่งแผนที่ ---
     map_lat = models.FloatField(blank=True, null=True, verbose_name="ละติจูด")
     map_lng = models.FloatField(blank=True, null=True, verbose_name="ลองจิจูด")
 
-    # --- ผู้จัดและเวลา ---
-    organizer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="organized_posts", verbose_name="ผู้สร้างโพสต์")
+    organizer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="organized_posts",
+        verbose_name="ผู้สร้างโพสต์"
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="สร้างเมื่อ")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="แก้ไขล่าสุด")
 
-    # --- สถานะอนุมัติ ---
+    # ✅ เพิ่มระบบถูกใจและจัดเก็บ
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True
+    )
+    saves = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name='saved_posts', blank=True
+    )
+
     status = models.CharField(
         max_length=10,
         choices=Status.choices,
@@ -126,4 +132,3 @@ class Post(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"
-
