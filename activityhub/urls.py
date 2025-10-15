@@ -14,20 +14,50 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+# from django.contrib import admin
+# from django.urls import path , include
+
+# urlpatterns = [
+#     path('admin/', admin.site.urls),
+#     path('users/', include('login_register.urls')),
+#     path('',include('home.urls')),
+#     path('approver/', include('approver.urls')),
+#     path('post/', include('post.urls')),
+#     path('user/', include('users.urls')),
+# ]
+
+# from django.conf import settings            
+# from django.conf.urls.static import static 
+
+# if settings.DEBUG:
+#     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
 from django.contrib import admin
-from django.urls import path , include
+from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
+    # ระบบแอดมินของ Django
     path('admin/', admin.site.urls),
+
+    # โมดูลการล็อกอิน / สมัครสมาชิก
     path('users/', include('login_register.urls')),
-    path('',include('home.urls')),
+
+    # หน้าแรกของเว็บไซต์
+    path('', include('home.urls')),
+
+    # ระบบอนุมัติ (Approver)
     path('approver/', include('approver.urls')),
-    path('post/', include('post.urls')),
+
+    # ระบบโพสต์กิจกรรม
+    path('post/', include(('post.urls', 'post'), namespace='post')),
+
+    # โปรไฟล์และระบบผู้ใช้
     path('user/', include('users.urls')),
 ]
 
-from django.conf import settings            
-from django.conf.urls.static import static 
-
+# เส้นทางสำหรับแสดงไฟล์สื่อ (Media)
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

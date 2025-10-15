@@ -34,12 +34,23 @@
         width: 40px;
         height: 40px;
         object-fit: cover;
+        transition: transform 0.2s ease;
+    }
+
+    .navbar-logo:hover {
+        transform: scale(1.05);
     }
 
     .navbar-brand {
         font-size: 1.5rem;
         font-weight: bold;
         color: #333;
+        text-decoration: none;
+        transition: color 0.2s ease;
+    }
+
+    .navbar-brand:hover {
+        color: #007bff;
     }
 
     /* ขวา */
@@ -141,8 +152,11 @@
 <!-- Navbar -->
 <nav class="navbar-full" id="navbarContainer">
     <div class="navbar-left">
-        <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo" class="navbar-logo">
-        <div class="navbar-brand">Activity Hub</div>
+        <!-- ✅ คลิกโลโก้หรือชื่อกลับหน้า Home -->
+        <a href="{% url 'home' %}" class="d-flex align-items-center text-decoration-none">
+            <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo" class="navbar-logo">
+            <div class="navbar-brand">Activity Hub</div>
+        </a>
     </div>
 
     <div class="navbar-right">

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2 class="text-center mb-4">สร้างโพสต์กิจกรรม</h2>
+
+  <form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label>ชื่อกิจกรรม</label>
+      {{ form.title }}
+    </div>
+    <div class="mb-3">
+      <label>สถานที่</label>
+      {{ form.location }}
+    </div>
+    <div class="mb-3">
+      <label>วันที่จัดกิจกรรม</label>
+      {{ form.date }}
+    </div>
+    <div class="mb-3">
+      <label>รายละเอียด</label>
+      {{ form.description }}
+    </div>
+    <div class="mb-3">
+      <label>อัปโหลดรูปภาพ</label>
+      {{ form.image }}
+    </div>
+    <div class="mb-3">
+      <label>กำหนดการ (ไฟล์)</label>
+      {{ form.schedule }}
+    </div>
+    <div class="mb-3">
+      <label>ประเภทกิจกรรม</label>
+      {{ form.category }}
+    </div>
+    <div class="mb-3">
+      <label>จำนวนคนที่รับสมัคร</label>
+      {{ form.capacity }}
+    </div>
+
+    <h5>ปักหมุดตำแหน่ง</h5>
+    <div id="map" style="height: 300px; margin-bottom: 15px;"></div>
+    <input type="hidden" id="id_map_lat" name="map_lat">
+    <input type="hidden" id="id_map_lng" name="map_lng">
+
+    <button type="submit" class="btn btn-primary w-100">โพสต์กิจกรรม</button>
+  </form>
+</div>
+
+<!-- ใช้ Leaflet สำหรับแมพ -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  var map = L.map('map').setView([15.228, 104.857], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: 'Map data © OpenStreetMap contributors'
+  }).addTo(map);
+
+  var marker;
+  map.on('click', function(e) {
+      if (marker) { map.removeLayer(marker); }
+      marker = L.marker(e.latlng).addTo(map);
+      document.getElementById('id_map_lat').value = e.latlng.lat;
+      document.getElementById('id_map_lng').value = e.latlng.lng;
+  });
+</script>
+{% endblock %}

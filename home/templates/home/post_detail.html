@@ -1,27 +1,93 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-8">
-            <h1>{{ post.title }}</h1>
-            <p class="text-muted">โดย: {{ post.organizer.email }} | วันที่จัด: {{ post.event_date|date:"d F Y, P" }}</p>
-            <hr>
-            
-            {% if post.image %}
-                <img src="{{ post.image.url }}" class="img-fluid mb-4" alt="{{ post.title }}">
-            {% endif %}
+<div class="container mt-5 d-flex justify-content-center">
+    <div class="card shadow-sm border-0" style="max-width: 750px; width: 100%; border-radius: 16px;">
+        <!-- ส่วนหัว -->
+        <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between px-3 pt-3">
+            <div class="d-flex align-items-center">
+                <img src="{{ post.organizer.profile.profile_picture.url }}" 
+                     alt="Profile Picture" 
+                     class="rounded-circle me-2" 
+                     width="45" height="45"
+                     style="object-fit: cover;">
+                <div>
+                    <h6 class="mb-0 fw-bold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</h6>
+                    <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+                </div>
+            </div>
+            <button class="btn btn-outline-secondary btn-sm">
+                <i class="fa-regular fa-user-plus"></i> ติดตาม
+            </button>
+        </div>
 
-            <h4>รายละเอียดกิจกรรม</h4>
+        <!-- ส่วนภาพกิจกรรม -->
+        {% if post.image %}
+        <div class="post-images">
+            <img src="{{ post.image.url }}" class="img-fluid w-100 rounded-0" alt="{{ post.title }}">
+        </div>
+        {% endif %}
+
+        <!-- ส่วนเนื้อหา -->
+        <div class="card-body">
+            <h5 class="fw-bold">{{ post.title }}</h5>
+            <p class="text-muted mb-1">
+                วันที่: {{ post.event_date|date:"j F Y" }}
+            </p>
+            <p class="text-muted mb-3">
+                สถานที่: {{ post.location }}
+            </p>
+
             <p>{{ post.description|linebreaks }}</p>
 
-            <h4>สถานที่</h4>
-            <p>{{ post.location }}</p>
+            <p class="text-muted small mb-0">
+                จำนวนที่รับสมัคร: <strong>{{ post.slots_available }}</strong> คน
+            </p>
+        </div>
 
-            <h4>จำนวนที่รับสมัคร</h4>
-            <p>{{ post.slots_available }} คน</p>
+        <!-- ส่วนท้าย -->
+        <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3 text-muted">
+                <i class="fa-regular fa-heart fs-5"></i>
+                <i class="fa-regular fa-bookmark fs-5"></i>
+                <i class="fa-solid fa-share-nodes fs-5"></i>
+            </div>
+            <button class="btn btn-success px-4 fw-semibold">
+                สมัคร
+            </button>
+        </div>
+
+        <div class="px-3 pb-3">
+            <a href="{% url 'home' %}" class="text-decoration-none text-muted">
+                ← กลับไปหน้าหลัก
+            </a>
         </div>
     </div>
-    <a href="{% url 'home' %}" class="btn btn-secondary mt-4">กลับไปหน้าหลัก</a>
 </div>
+
+<style>
+    .card {
+        border-radius: 16px;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    .card-header button:hover {
+        background-color: #007bff;
+        color: #fff;
+    }
+    .post-images img {
+        max-height: 400px;
+        object-fit: cover;
+    }
+    .btn-success {
+        border-radius: 10px;
+    }
+    .fa-regular, .fa-solid {
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+    .fa-regular:hover, .fa-solid:hover {
+        color: #007bff;
+    }
+</style>
 {% endblock %}
