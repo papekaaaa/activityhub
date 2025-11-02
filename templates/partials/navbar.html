@@ -9,16 +9,15 @@
         background-color: #ffffff;
         border-bottom: 1px solid #e7e7e7;
         box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
-        padding: 0.6rem 3rem;
+        padding: 0.8rem 6rem;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        height: 70px;
+        height: 85px;
         z-index: 1000;
         transition: all 0.3s ease;
     }
 
-    /* เมื่อ scroll จะเพิ่มเงาเข้ม */
     .navbar-scrolled {
         box-shadow: 0 6px 22px rgba(0, 0, 0, 0.15);
     }
@@ -27,12 +26,12 @@
     .navbar-left {
         display: flex;
         align-items: center;
-        gap: 0.8rem;
+        gap: 1rem;
     }
 
     .navbar-logo {
-        width: 40px;
-        height: 40px;
+        width: 50px;
+        height: 50px;
         object-fit: cover;
         transition: transform 0.2s ease;
     }
@@ -42,8 +41,8 @@
     }
 
     .navbar-brand {
-        font-size: 1.5rem;
-        font-weight: bold;
+        font-size: 1.8rem;
+        font-weight: 700;
         color: #333;
         text-decoration: none;
         transition: color 0.2s ease;
@@ -101,34 +100,49 @@
 
     /* ปุ่ม Login / Register */
     .btn {
-        padding: 0.5rem 1.2rem;
+        padding: 0.6rem 1.4rem;
         border-radius: 10px;
         font-weight: 600;
+        font-size: 0.95rem;
         text-decoration: none;
         transition: all 0.2s ease-in-out;
         border: 1.8px solid transparent;
+        user-select: none;
     }
 
+    /* ✅ เข้าสู่ระบบ: พื้นขาว ขอบดำ */
     .btn-login {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
+        background-color: #ffffff;
+        color: #000000;
+        border-color: #000000;
     }
 
     .btn-login:hover {
+        background-color: #f0f0f0;
+        color: #000000;
+    }
+
+    /* ✅ สมัครสมาชิก: พื้นฟ้าอ่อน + โทนฟ้าเข้มเมื่อ hover/active */
+    .btn-register {
+        background-color: #e6ebff;
+        color: #000000;
+        border-color: #e6ebff;
+    }
+
+    /* 🟦 Hover: ฟ้าอ่อนเข้มขึ้น */
+    .btn-register:hover {
+        background-color: #cddaff;
+        border-color: #cddaff;
+        color: #000000;
+    }
+
+    /* 🎯 Active/Focus: ฟ้าเข้ม + ตัวอักษรขาว */
+    .btn-register:active,
+    .btn-register:focus {
         background-color: #0056b3;
         border-color: #0056b3;
-    }
-
-    .btn-register {
-        background-color: #ffffff;
-        color: #007bff;
-        border-color: #007bff;
-    }
-
-    .btn-register:hover {
-        background-color: #007bff;
-        color: white;
+        color: #ffffff;
+        outline: none;
     }
 
     @media (max-width: 768px) {
@@ -139,11 +153,11 @@
         }
 
         .navbar-brand {
-            font-size: 1.2rem;
+            font-size: 1.4rem;
         }
 
         .btn {
-            padding: 0.4rem 0.9rem;
+            padding: 0.4rem 1rem;
             font-size: 0.9rem;
         }
     }
@@ -178,7 +192,7 @@
             </div>
         {% else %}
             <a href="{% url 'login' %}" class="btn btn-login">เข้าสู่ระบบ</a>
-            <a href="{% url 'register' %}" class="btn btn-register">ลงทะเบียน</a>
+            <a href="{% url 'register' %}" class="btn btn-register">สมัครสมาชิก</a>
         {% endif %}
     </div>
 </nav>
