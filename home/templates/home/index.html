@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<!-- 🔹 Carousel -->
+<div id="activityCarousel" class="carousel slide shadow-sm overflow-hidden mb-4" data-bs-ride="carousel">
+  <div class="carousel-inner">
+    <div class="carousel-item active">
+      <a href="{% url 'about' %}">
+        <img src="{% static 'images/about_banner.png' %}" class="d-block w-100 banner-img" alt="เกี่ยวกับ Activity Hub">
+      </a>
+    </div>
+    <div class="carousel-item">
+      <a href="{% url 'home' %}">
+        <img src="{% static 'images/latest_banner.png' %}" class="d-block w-100 banner-img" alt="กิจกรรมล่าสุด">
+      </a>
+    </div>
+    <div class="carousel-item">
+      <a href="{% url 'map' %}">
+        <img src="{% static 'images/map_banner.png' %}" class="d-block w-100 banner-img" alt="แผนที่กิจกรรม">
+      </a>
+    </div>
+  </div>
+  <button class="carousel-control-prev" type="button" data-bs-target="#activityCarousel" data-bs-slide="prev">
+    <span class="carousel-control-prev-icon"></span>
+    <span class="visually-hidden">Previous</span>
+  </button>
+  <button class="carousel-control-next" type="button" data-bs-target="#activityCarousel" data-bs-slide="next">
+    <span class="carousel-control-next-icon"></span>
+    <span class="visually-hidden">Next</span>
+  </button>
+</div>
+
+<!-- 🔹 ปุ่มเมนู -->
+<div class="container-fluid mb-5 px-5">
+  <div class="row text-center g-4 justify-content-center">
+    <div class="col-12 col-md-3">
+      <div class="dropdown h-100">
+        <button class="menu-box shadow-sm d-block py-4 rounded-4 w-100 dropdown-toggle"
+                type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          ประเภทกิจกรรม
+        </button>
+        <ul class="dropdown-menu w-100 text-center" aria-labelledby="categoryDropdown">
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านสาธารณประโยชน์">จิตอาสาด้านสาธารณประโยชน์</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านการศึกษา">จิตอาสาด้านการศึกษา</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านสุขภาพ">จิตอาสาด้านสุขภาพ</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านสิ่งแวดล้อม">จิตอาสาด้านสิ่งแวดล้อม</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านภัยพิบัติและบรรเทาทุกข์">จิตอาสาด้านภัยพิบัติและบรรเทาทุกข์</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านศาสนาและวัฒนธรรม">จิตอาสาด้านศาสนาและวัฒนธรรม</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านเทคโนโลยีและสื่อสาร">จิตอาสาด้านเทคโนโลยีและสื่อสาร</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านเยาวชนและเด็ก">จิตอาสาด้านเยาวชนและเด็ก</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=จิตอาสาด้านสัตว์และสิ่งมีชีวิต">จิตอาสาด้านสัตว์และสิ่งมีชีวิต</a></li>
+          <li><a class="dropdown-item" href="{% url 'category' %}?type=กิจกรรมรณรงค์/ประกวด">กิจกรรมรณรงค์/ประกวด</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <a href="{% url 'home' %}" class="menu-box shadow-sm d-block py-4 rounded-4">
+        <span class="fw-semibold fs-5">กิจกรรมใหม่ล่าสุด</span>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <a href="{% url 'about' %}" class="menu-box shadow-sm d-block py-4 rounded-4">
+        <span class="fw-semibold fs-5">ติดต่อเรา</span>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-3">
+      <a href="{% url 'map' %}" class="menu-box shadow-sm d-block py-4 rounded-4">
+        <span class="fw-semibold fs-5">แผนที่</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- 🔹 หมวดหมู่กิจกรรม (ไอคอนใหญ่) -->
+<div class="container-fluid px-5">
+  <section class="category-section text-center mt-5 mb-5">
+    <h3 class="fw-semibold mb-5 fs-2">หมวดหมู่กิจกรรม</h3>
+    <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4 justify-content-center">
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านสาธารณประโยชน์" class="category-card"><img src="{% static 'icons/community.png' %}" alt=""><p>จิตอาสาด้านสาธารณประโยชน์</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านการศึกษา" class="category-card"><img src="{% static 'icons/education.png' %}" alt=""><p>จิตอาสาด้านการศึกษา</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านสุขภาพ" class="category-card"><img src="{% static 'icons/health.png' %}" alt=""><p>จิตอาสาด้านสุขภาพ</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านสิ่งแวดล้อม" class="category-card"><img src="{% static 'icons/environment.png' %}" alt=""><p>จิตอาสาด้านสิ่งแวดล้อม</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านภัยพิบัติและบรรเทาทุกข์" class="category-card"><img src="{% static 'icons/safety.png' %}" alt=""><p>จิตอาสาด้านภัยพิบัติและบรรเทาทุกข์</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านศาสนาและวัฒนธรรม" class="category-card"><img src="{% static 'icons/culture.png' %}" alt=""><p>จิตอาสาด้านศาสนาและวัฒนธรรม</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านเทคโนโลยีและสื่อสาร" class="category-card"><img src="{% static 'icons/tech.png' %}" alt=""><p>จิตอาสาด้านเทคโนโลยีและสื่อสาร</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านเยาวชนและเด็ก" class="category-card"><img src="{% static 'icons/youth.png' %}" alt=""><p>จิตอาสาด้านเยาวชนและเด็ก</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=จิตอาสาด้านสัตว์และสิ่งมีชีวิต" class="category-card"><img src="{% static 'icons/animal.png' %}" alt=""><p>จิตอาสาด้านสัตว์และสิ่งมีชีวิต</p></a></div>
+      <div class="col"><a href="{% url 'category' %}?type=กิจกรรมรณรงค์/ประกวด" class="category-card"><img src="{% static 'icons/campaige.png' %}" alt=""><p>กิจกรรมรณรงค์/ประกวด</p></a></div>
+    </div>
+  </section>
+</div>
+
+<style>
+.carousel { width: 100vw; margin-left: calc(50% - 50vw); }
+.banner-img { width: 100%; height: 600px; object-fit: cover; }
+.menu-box { background: #fff; border: 2px solid #f1f1f1; transition: .3s; color: #000; font-size: 1.3rem; padding: 1.5rem 0; border-radius: 16px; }
+.menu-box:hover { transform: translateY(-6px); background-color: #f8f9ff; box-shadow: 0 8px 18px rgba(0,0,0,0.1); }
+.category-section { background-color: #fff; padding: 70px 0; border-radius: 22px; box-shadow: 0 4px 14px rgba(0,0,0,0.06); width: 100%; }
+.category-card { display:block; background:#fff; border-radius:24px; box-shadow:0 6px 16px rgba(0,0,0,0.08); transition:.3s; padding:50px 15px; text-decoration:none; color:#333; }
+.category-card:hover { transform:translateY(-8px); box-shadow:0 10px 25px rgba(0,0,0,0.12); }
+.category-card img { width:180px; height:180px; object-fit:contain; margin-bottom:20px; }
+.category-card p { font-size:1.3rem; font-weight:600; }
+@media (max-width:992px){ .category-card img{width:140px;height:140px;} .category-card p{font-size:1.1rem;} }
+@media (max-width:768px){ .banner-img{height:300px;} .menu-box{font-size:1.1rem;padding:1rem 0;} .category-card img{width:120px;height:120px;} }
+</style>
+{% endblock %}

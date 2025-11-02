@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="fw-semibold text-center mb-4">
+    {% if selected_category %}
+      หมวดหมู่: {{ selected_category }}
+    {% else %}
+      ทุกกิจกรรม
+    {% endif %}
+  </h2>
+
+  {% if posts %}
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+      {% for post in posts %}
+        <div class="col">
+          <div class="card shadow-sm border-0 h-100">
+            {% if post.image %}
+              <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}">
+            {% else %}
+              <img src="{% static 'images/default.png' %}" class="card-img-top" alt="no image">
+            {% endif %}
+            <div class="card-body">
+              <h5 class="card-title">{{ post.title }}</h5>
+              <p class="card-text text-muted">{{ post.description|truncatechars:100 }}</p>
+            </div>
+            <div class="card-footer bg-white border-0">
+              <small class="text-secondary">
+                โดย {{ post.organizer.username }} · {{ post.created_at|date:"d M Y" }}
+              </small>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-center text-muted">ยังไม่มีกิจกรรมในหมวดนี้</p>
+  {% endif %}
+</div>
+{% endblock %}

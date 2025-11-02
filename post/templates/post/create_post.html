@@ -1,67 +1,148 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
-<div class="container mt-4">
-  <h2 class="text-center mb-4">สร้างโพสต์กิจกรรม</h2>
-
-  <form method="POST" enctype="multipart/form-data">
-    {% csrf_token %}
-    <div class="mb-3">
-      <label>ชื่อกิจกรรม</label>
-      {{ form.title }}
-    </div>
-    <div class="mb-3">
-      <label>สถานที่</label>
-      {{ form.location }}
-    </div>
-    <div class="mb-3">
-      <label>วันที่จัดกิจกรรม</label>
-      {{ form.date }}
-    </div>
-    <div class="mb-3">
-      <label>รายละเอียด</label>
-      {{ form.description }}
-    </div>
-    <div class="mb-3">
-      <label>อัปโหลดรูปภาพ</label>
-      {{ form.image }}
-    </div>
-    <div class="mb-3">
-      <label>กำหนดการ (ไฟล์)</label>
-      {{ form.schedule }}
-    </div>
-    <div class="mb-3">
-      <label>ประเภทกิจกรรม</label>
-      {{ form.category }}
-    </div>
-    <div class="mb-3">
-      <label>จำนวนคนที่รับสมัคร</label>
-      {{ form.capacity }}
+<div class="container py-5 d-flex justify-content-center">
+  <div class="post-card shadow-sm">
+    <!-- ส่วนหัว -->
+    <div class="post-header text-center position-relative">
+      <h4 class="fw-bold">สร้างโพสต์</h4>
+      <button class="btn-close-custom">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
-    <h5>ปักหมุดตำแหน่ง</h5>
-    <div id="map" style="height: 300px; margin-bottom: 15px;"></div>
-    <input type="hidden" id="id_map_lat" name="map_lat">
-    <input type="hidden" id="id_map_lng" name="map_lng">
+    <!-- ส่วนโปรไฟล์ -->
+    <div class="text-center my-3">
+      <img src="{% static 'images/default_profile.png' %}" class="profile-img" alt="profile" />
+    </div>
 
-    <button type="submit" class="btn btn-primary w-100">โพสต์กิจกรรม</button>
-  </form>
+    <!-- ฟอร์ม -->
+    <form method="post" enctype="multipart/form-data" class="px-3">
+      {% csrf_token %}
+      <input type="text" name="title" placeholder="ชื่อกิจกรรม" class="input-field mb-3" required />
+      <input type="text" name="location" placeholder="สถานที่" class="input-field mb-3" required />
+      <input type="datetime-local" name="event_date" class="input-field mb-3" />
+      <textarea name="description" placeholder="ค่าใช้จ่าย/รายละเอียด" class="input-field mb-3" rows="3"></textarea>
+      <input type="number" name="slots" placeholder="จำนวนคนที่รับสมัคร" class="input-field mb-4" />
+
+      <!-- ปุ่มด้านล่าง -->
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="icon-group d-flex gap-4">
+          <label class="icon-upload">
+            <i class="fa-regular fa-image"></i>
+            <input type="file" name="image" hidden />
+          </label>
+          <label class="icon-upload">
+            <i class="fa-solid fa-location-dot"></i>
+          </label>
+          <label class="icon-upload">
+            <i class="fa-regular fa-clipboard"></i>
+            <input type="file" name="attachment" hidden />
+          </label>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+          <label class="checkbox-label">
+            <input type="checkbox" /> สมัคร
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" /> สร้างกลุ่ม
+          </label>
+        </div>
+
+        <button type="submit" class="btn-next">ถัดไป</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- ใช้ Leaflet สำหรับแมพ -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-  var map = L.map('map').setView([15.228, 104.857], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: 'Map data © OpenStreetMap contributors'
-  }).addTo(map);
+<style>
+body {
+  background-color: #f4f4f4 !important;
+  font-family: 'Kanit', sans-serif;
+}
 
-  var marker;
-  map.on('click', function(e) {
-      if (marker) { map.removeLayer(marker); }
-      marker = L.marker(e.latlng).addTo(map);
-      document.getElementById('id_map_lat').value = e.latlng.lat;
-      document.getElementById('id_map_lng').value = e.latlng.lng;
-  });
-</script>
+/* ✅ กล่องโพสต์ */
+.post-card {
+  background-color: #fff;
+  width: 480px;
+  border-radius: 22px;
+  padding: 1.5rem 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+/* ✅ ส่วนหัว */
+.post-header {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+}
+.btn-close-custom {
+  position: absolute;
+  right: 20px;
+  top: 0;
+  background: none;
+  border: none;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+/* ✅ โปรไฟล์ */
+.profile-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ccc;
+}
+
+/* ✅ ช่องกรอกข้อมูล */
+.input-field {
+  width: 100%;
+  border: 1.5px solid #ccc;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #000;
+  box-shadow: 0 0 0 1px #000;
+}
+
+/* ✅ ไอคอนล่าง */
+.icon-group i {
+  font-size: 1.4rem;
+  color: #333;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.icon-group i:hover {
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* ✅ เช็คบ็อกซ์ */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.95rem;
+}
+
+/* ✅ ปุ่มถัดไป */
+.btn-next {
+  background-color: #f8a6a0;
+  border: none;
+  border-radius: 12px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+.btn-next:hover {
+  background-color: #f68c84;
+  transform: translateY(-2px);
+}
+</style>
 {% endblock %}

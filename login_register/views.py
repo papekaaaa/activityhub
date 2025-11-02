@@ -78,5 +78,5 @@ def logout_view(request):
     messages.success(request, "คุณออกจากระบบสำเร็จแล้ว")
     
     # 2. ส่งผู้ใช้กลับไปยังหน้า login
-    return redirect('home')
+    return redirect('index')
 

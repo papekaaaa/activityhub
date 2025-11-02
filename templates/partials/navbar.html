@@ -167,10 +167,15 @@
 <nav class="navbar-full" id="navbarContainer">
     <div class="navbar-left">
         <!-- ✅ คลิกโลโก้หรือชื่อกลับหน้า Home -->
-        <a href="{% url 'home' %}" class="d-flex align-items-center text-decoration-none">
+        {% if user.is_authenticated %}
+            <a href="{% url 'home' %}" class="d-flex align-items-center text-decoration-none">
+        {% else %}
+            <a href="{% url 'index' %}" class="d-flex align-items-center text-decoration-none">
+        {% endif %}
             <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo" class="navbar-logo">
             <div class="navbar-brand">Activity Hub</div>
         </a>
+
     </div>
 
     <div class="navbar-right">
