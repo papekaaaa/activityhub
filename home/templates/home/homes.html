@@ -17,7 +17,7 @@
         {% endfor %}
         {% if selected_category %}
         <a
-          href="{% url 'home' %}"
+          href="{% url 'home:home' %}"
           class="list-group-item list-group-item-action text-danger fw-semibold"
         >
           <i class="fa-solid fa-xmark"></i> ล้างตัวกรอง
@@ -28,13 +28,10 @@
 
     <!-- Main content -->
     <div class="col-md-9">
-      <!-- ✅ ส่วนหัวแบบใหม่ -->
+      <!-- Header: search + icons + post button -->
       <div class="header-section mb-4">
-        <!-- แถวค้นหา + ไอคอน -->
-        <div
-          class="d-flex align-items-center justify-content-between flex-wrap mb-3"
-        >
-          <!-- ช่องค้นหา -->
+        <div class="d-flex align-items-center justify-content-between flex-wrap mb-3">
+          <!-- Search -->
           <form method="get" action="." class="flex-grow-1 me-3 mb-2">
             <div class="search-box d-flex align-items-center shadow-sm">
               <input
@@ -50,34 +47,28 @@
           </form>
 
           {% if user.is_authenticated %}
-          <!-- ไอคอนลัด -->
+          <!-- Shortcuts icons -->
           <div class="d-flex align-items-center gap-4 mb-2">
-            <a href="{% url 'home' %}" class="nav-icon" title="หน้าหลัก">
+            <a href="{% url 'home:home' %}" class="nav-icon" title="หน้าหลัก">
               <i class="fa-solid fa-house"></i>
             </a>
-            <a
-              href="{% url 'post:liked_posts' %}"
-              class="nav-icon"
-              title="กิจกรรมที่ถูกใจ"
-            >
+            <a href="{% url 'post:liked_posts' %}" class="nav-icon" title="กิจกรรมที่ถูกใจ">
               <i class="fa-regular fa-heart"></i>
             </a>
-            <a
-              href="{% url 'post:saved_posts' %}"
-              class="nav-icon"
-              title="กิจกรรมที่บันทึกไว้"
-            >
+            <a href="{% url 'post:saved_posts' %}" class="nav-icon" title="กิจกรรมที่บันทึกไว้">
               <i class="fa-regular fa-bookmark"></i>
             </a>
-            <a href="#" class="nav-icon" title="สถานที่">
-              <i class="fa-regular fa-location-dot"></i>
+            <!-- แผนที่กิจกรรม (โหมดมีตำแหน่งผู้ใช้) -->
+            <a href="{% url 'home:map_nearby' %}" class="nav-icon" title="แผนที่กิจกรรม">
+              <i class="fa-solid fa-location-dot"></i>
             </a>
+
           </div>
           {% endif %}
         </div>
 
-        <!-- ปุ่มโพสต์กิจกรรม -->
         {% if user.is_authenticated %}
+        <!-- Post button -->
         <a
           href="{% url 'post:create_post' %}"
           class="btn btn-outline-secondary fw-semibold post-btn w-100 text-start"
@@ -87,105 +78,207 @@
         {% endif %}
       </div>
 
-      <!-- ✅ ลิสต์กิจกรรม -->
+      <!-- FEED LIST -->
       {% for post in posts %}
-      <div class="card shadow-sm border-0 mb-4" style="border-radius: 16px;">
-        <div
-          class="card-header bg-white border-0 d-flex align-items-center justify-content-between px-3 pt-3"
-        >
-          <div class="d-flex align-items-center">
-            {% if post.organizer.profile.profile_picture %}
-            <img
-              src="{{ post.organizer.profile.profile_picture.url }}"
-              class="rounded-circle me-2"
-              width="45"
-              height="45"
-              style="object-fit: cover;"
-            />
-            {% else %}
-            <img
-              src="{% static 'images/default_profile.png' %}"
-              class="rounded-circle me-2"
-              width="45"
-              height="45"
-              style="object-fit: cover;"
-            />
+      <div class="card shadow-sm border-0 mb-4 ig-card" style="border-radius: 16px;">
+        <div class="card-body p-3">
+
+          <!-- บรรทัดบน: โปรไฟล์ + ติดตาม -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="d-flex align-items-center">
+              <a href="{% url 'profile_detail' post.organizer.id %}">
+                {% if post.organizer.profile.profile_picture %}
+                <img
+                  src="{{ post.organizer.profile.profile_picture.url }}"
+                  class="me-2 profile-avatar"
+                  alt="โปรไฟล์ผู้จัดกิจกรรม"
+                />
+                {% else %}
+                <img
+                  src="{% static 'images/default_profile.png' %}"
+                  class="me-2 profile-avatar"
+                  alt="โปรไฟล์เริ่มต้น"
+                />
+                {% endif %}
+              </a>
+              <div>
+                <h6 class="fw-bold mb-0 post-author-name">
+                  {{ post.organizer.first_name }} {{ post.organizer.last_name }}
+                </h6>
+                <small class="text-muted post-author-date">{{ post.created_at|date:"d M Y" }}</small>
+              </div>
+            </div>
+
+            <!-- ปุ่มติดตาม (ตอนนี้เป็น frontend / ajax) -->
+            {% if user.is_authenticated and user.id != post.organizer.id %}
+            <button
+              type="button"
+              class="btn btn-outline-secondary btn-sm rounded-pill px-3 follow-btn"
+              data-following="false"
+              data-user-id="{{ post.organizer.id }}"
+            >
+              ติดตาม
+            </button>
             {% endif %}
-            <div>
-              <h6 class="mb-0 fw-bold">
-                {{ post.organizer.first_name }} {{ post.organizer.last_name }}
-              </h6>
-              <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+          </div>
+
+          <!-- เนื้อหา: รูปซ้าย / ข้อความขวา -->
+          <div class="d-flex flex-column flex-md-row gap-3 align-items-stretch">
+
+            <!-- IMAGE LEFT -->
+            <div class="flex-shrink-0 ig-card-image mb-3 mb-md-0">
+              <div class="post-media">
+                {% if post.images_list %}
+                  <div class="media-grid">
+                    {% for img_url in post.images_list|slice:":4" %}
+                    <div class="media-grid-item">
+                      <img src="{{ img_url }}" alt="{{ post.title }}" />
+                      {% if forloop.last and post.images_list|length > 4 %}
+                      <div class="media-more-overlay">
+                        +{{ post.images_list|length|add:"-4" }}
+                      </div>
+                      {% endif %}
+                    </div>
+                    {% endfor %}
+                  </div>
+                {% elif post.image %}
+                  <!-- รูปเดี่ยวมาตรฐาน -->
+                  <img
+                    src="{{ post.image.url }}"
+                    class="post-media-img"
+                    alt="{{ post.title }}"
+                  />
+                {% else %}
+                  <!-- ไม่มีรูป -->
+                  <div
+                    class="d-flex align-items-center justify-content-center rounded-3 bg-light border w-100 h-100"
+                  >
+                    <span class="text-muted">ยังไม่มีรูปภาพ</span>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+
+            <!-- TEXT RIGHT -->
+            <div class="flex-grow-1 d-flex flex-column justify-content-between">
+
+              <div>
+                <h5 class="fw-bold mb-2 post-detail-title">{{ post.title }}</h5>
+
+                <!-- วันที่ -->
+                <p class="text-muted mb-1 post-detail-meta">
+                  📅 {{ post.event_date|date:"j F Y" }}
+                </p>
+
+                <!-- สถานที่ -->
+                <p class="text-muted mb-1 post-detail-meta">
+                  📍 {{ post.location }}
+                </p>
+
+                <!-- ค่าใช้จ่าย: ใช้ field fee ถ้าไม่มีให้ขึ้น "ไม่มีค่าใช้จ่าย" -->
+                <p class="text-muted mb-1 post-detail-meta">
+                  🌱
+                  {% if post.fee %}
+                    {{ post.fee }} บาท
+                  {% else %}
+                    ไม่มีค่าใช้จ่าย
+                  {% endif %}
+                </p>
+
+                <!-- จำนวนที่รับสมัคร (แสดงเสมอถ้ามีค่า) -->
+                {% if post.slots_available %}
+                <p class="text-muted mb-3 post-detail-meta">
+                  👥 รับสมัคร {{ post.slots_available }} คน
+                </p>
+                {% else %}
+                <p class="text-muted mb-3 post-detail-meta">
+                  👥 ไม่ได้ระบุจำนวนที่รับสมัคร
+                </p>
+                {% endif %}
+
+                <!-- คำโปรย / รายละเอียดสั้น -->
+                <p class="mb-2 post-detail-desc">
+                  {{ post.description|truncatechars:200 }}
+                </p>
+
+                <a
+                  href="{% url 'post:post_detail' post.id %}"
+                  class="text-primary text-decoration-none fw-semibold post-detail-link"
+                >
+                  คลิกเพื่อดูกิจกรรม
+                </a>
+              </div>
+
+              <!-- ICONS + สมัคร -->
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div class="d-flex align-items-center gap-3">
+
+                  {% if user.is_authenticated %}
+                  <!-- LIKE -->
+                  <button
+                    type="button"
+                    class="btn btn-link p-0 like-btn"
+                    data-id="{{ post.id }}"
+                    aria-label="like"
+                  >
+                    {% if user in post.likes.all %}
+                    <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
+                    {% else %}
+                    <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
+                    {% endif %}
+                  </button>
+                  <small id="like-count-{{ post.id }}">{{ post.likes.count }}</small>
+
+                  <!-- COMMENT -->
+                  <a
+                    href="{% url 'post:post_detail' post.id %}#comments"
+                    class="text-dark"
+                    aria-label="comments"
+                  >
+                    <i class="fa-regular fa-comment fs-5"></i>
+                  </a>
+
+                  <!-- SAVE -->
+                  <button
+                    type="button"
+                    class="btn btn-link p-0 save-btn"
+                    data-id="{{ post.id }}"
+                    aria-label="save"
+                  >
+                    {% if user in post.saves.all %}
+                    <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
+                    {% else %}
+                    <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
+                    {% endif %}
+                  </button>
+                  {% endif %}
+
+                  <!-- SHARE -->
+                  <button
+                    type="button"
+                    class="btn btn-link p-0 text-dark share-btn"
+                    data-url="{% url 'post:post_detail' post.id %}"
+                    aria-label="share"
+                  >
+                    <i class="fa-solid fa-share-nodes fs-5"></i>
+                  </button>
+                </div>
+
+                <!-- REGISTER BUTTON: ใช้ allow_register จาก model -->
+                {% if post.allow_register %}
+                <a
+                  href="{% url 'activity_register:register_activity' post.id %}"
+                  class="btn btn-success btn-sm rounded-pill px-3 fw-semibold"
+                >
+                  สมัคร
+                </a>
+                {% endif %}
+
+              </div>
+
             </div>
           </div>
-          <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">
-            <i class="fa-regular fa-user-plus"></i> ติดตาม
-          </button>
-        </div>
 
-        {% if post.image %}
-        <img
-          src="{{ post.image.url }}"
-          class="card-img-top"
-          alt="{{ post.title }}"
-          style="object-fit: cover; max-height: 420px;"
-        />
-        {% endif %}
-
-        <div class="card-body">
-          <h5 class="fw-bold">{{ post.title }}</h5>
-          <p class="text-muted mb-1">📅 {{ post.event_date|date:"j F Y" }}</p>
-          <p class="text-muted mb-2">📍 {{ post.location }}</p>
-          <p>{{ post.description|truncatechars:150 }}</p>
-
-          <div class="d-flex justify-content-between align-items-center">
-            <a
-              href="{% url 'post:post_detail' post.id %}"
-              class="btn btn-outline-primary btn-sm"
-              >ดูรายละเอียด</a
-            >
-            <span class="badge bg-light text-dark">{{ post.category }}</span>
-          </div>
-        </div>
-
-        <div
-          class="card-footer bg-white border-0 d-flex justify-content-between align-items-center text-muted pb-3"
-        >
-          <div class="d-flex align-items-center gap-3">
-            {% if user.is_authenticated %}
-            <button
-              class="btn btn-link p-0 like-btn"
-              data-id="{{ post.id }}"
-              aria-label="like"
-            >
-              {% if user in post.likes.all %}
-              <i
-                id="like-icon-{{ post.id }}"
-                class="fas fa-heart fs-5 text-danger"
-              ></i>
-              {% else %}
-              <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
-              {% endif %}
-            </button>
-            <small id="like-count-{{ post.id }}">{{ post.likes.count }}</small>
-
-            <button
-              class="btn btn-link p-0 save-btn"
-              data-id="{{ post.id }}"
-              aria-label="save"
-            >
-              {% if user in post.saves.all %}
-              <i
-                id="save-icon-{{ post.id }}"
-                class="fas fa-bookmark fs-5 text-primary"
-              ></i>
-              {% else %}
-              <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
-              {% endif %}
-            </button>
-            {% endif %}
-            <i class="fa-solid fa-share-nodes fs-5"></i>
-          </div>
         </div>
       </div>
       {% empty %}
@@ -202,7 +295,7 @@ body {
   background-color: #f5f6f7 !important;
 }
 
-/* ✅ ช่องค้นหา */
+/* Search box */
 .search-box {
   border: 1.6px solid #cfcfcf;
   border-radius: 40px;
@@ -217,12 +310,8 @@ body {
   outline: none;
   box-shadow: none !important;
 }
-.search-box button i {
-  font-size: 1.2rem;
-  color: #333;
-}
 
-/* ✅ ปุ่มโพสต์กิจกรรม */
+/* Post button */
 .post-btn {
   border-radius: 16px;
   border: 1.5px solid #cfcfcf;
@@ -236,7 +325,7 @@ body {
   border-color: #999;
 }
 
-/* ✅ ไอคอนหลัก */
+/* Top-right icons */
 .nav-icon i {
   font-size: 1.8rem;
   color: #333;
@@ -247,30 +336,36 @@ body {
   transform: scale(1.1);
 }
 
-/* ✅ Sidebar — ขยายให้ใหญ่และยาวสมดุล */
+/* Sidebar */
 .col-md-3 .list-group {
   position: sticky;
   top: 90px;
   background-color: #fff;
   border-radius: 16px;
-  padding: 1.5rem 1.5rem;
+  padding: 1.5rem;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-  height: calc(100vh - 110px); /* ยืดให้ยาวเต็มจอพอดี */
+  height: calc(100vh - 110px);
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
-  overflow-y: auto; /* เผื่อรายการเกินจอ */
+  overflow-y: auto;
 }
 .col-md-3 {
-  flex: 0 0 330px; /* กว้างขึ้นเล็กน้อย */
-  max-width: 330px;
+  flex: 0 0 460px !important;
+  max-width: 460px !important;
 }
+.col-md-9 {
+  flex-grow: 1 !important;
+  max-width: calc(100% - 460px) !important;
+}
+
+/* Sidebar items */
 .list-group-item {
   border: none;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
   border-radius: 10px;
   font-size: 1.05rem;
   padding: 0.8rem 1.2rem;
+  line-height: 1.5;
   background-color: #fff;
   transition: all 0.2s ease;
 }
@@ -283,18 +378,113 @@ body {
   font-weight: 600;
 }
 
-/* ✅ Card */
-.card {
-  border-radius: 16px;
-  overflow: hidden;
+/* Card */
+.ig-card {
   background-color: #fff;
-  transition: box-shadow 0.3s ease, transform 0.2s ease;
+  padding: 1rem;
+  border-radius: 18px;
+  transition: box-shadow 0.3s ease, transform 0.2s.ease;
 }
-.card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  transform: translateY(-3px);
+.ig-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
 }
 
+/* avatar */
+.profile-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  flex-shrink: 0;
+}
+
+/* text sizes */
+.post-author-name {
+  font-size: 1.05rem;
+}
+.post-author-date {
+  font-size: 0.9rem;
+}
+.post-detail-title {
+  font-size: 1.4rem;
+}
+.post-detail-meta {
+  font-size: 1.05rem;
+}
+.post-detail-desc {
+  font-size: 1.05rem;
+}
+.post-detail-link {
+  font-size: 1rem;
+}
+
+/* image */
+.post-media {
+  width: 420px;
+  max-width: 100%;
+  height: 320px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #000;
+}
+.post-media-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* grid 2x2 */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  width: 100%;
+  height: 100%;
+}
+.media-grid-item {
+  position: relative;
+  overflow: hidden;
+}
+.media-grid-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* overlay +X */
+.media-more-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+
+/* responsive */
+@media (max-width: 992px) {
+  .post-media {
+    width: 100%;
+    height: 260px;
+  }
+}
+
+@media (max-width: 768px) {
+  .col-md-3 {
+    display: none;
+  }
+  .col-md-9 {
+    max-width: 100% !important;
+  }
+  .post-media {
+    height: 240px;
+  }
+}
 </style>
 
 <script>
@@ -332,6 +522,37 @@ document.addEventListener('DOMContentLoaded', () => {
       icon.className = data.saved
         ? 'fas fa-bookmark fs-5 text-primary'
         : 'far fa-bookmark fs-5';
+    });
+  });
+
+  // SHARE (copy link)
+  document.querySelectorAll('.share-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      try {
+        await navigator.clipboard.writeText(window.location.origin + url);
+        alert('คัดลอกลิงก์กิจกรรมแล้ว');
+      } catch (e) {
+        alert('ไม่สามารถคัดลอกลิงก์ได้');
+      }
+    });
+  });
+
+  // FOLLOW (frontend-only toggle ตอนนี้; logic จริงไปทำ view ajax ทีหลังได้)
+  document.querySelectorAll('.follow-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const following = btn.getAttribute('data-following') === 'true';
+      if (following) {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+        btn.textContent = 'ติดตาม';
+        btn.setAttribute('data-following', 'false');
+      } else {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary');
+        btn.textContent = 'กำลังติดตาม';
+        btn.setAttribute('data-following', 'true');
+      }
     });
   });
 });

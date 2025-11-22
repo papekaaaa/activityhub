@@ -65,6 +65,7 @@
 #     def __str__(self):
 #         return self.title
 
+# post/models.py
 from django.db import models
 from django.conf import settings  # ✅ รองรับ CustomUser
 
@@ -93,13 +94,36 @@ class Post(models.Model):
     location = models.CharField(max_length=255, verbose_name="สถานที่")
     event_date = models.DateTimeField(blank=True, null=True, verbose_name="วันที่จัดกิจกรรม")
     category = models.CharField(max_length=100, choices=CATEGORY_CHOICES, verbose_name="ประเภทกิจกรรม")
+
+    # ✅ จำนวนที่รับสมัคร
     slots_available = models.PositiveIntegerField(verbose_name="จำนวนที่รับสมัคร")
 
+    # ✅ ค่าใช้จ่าย (ไม่กรอก = ไม่มีค่าใช้จ่าย)
+    fee = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+        verbose_name="ค่าใช้จ่าย (บาท)"
+    )
+
+    # ✅ เปิด / ปิด ให้สมัครผ่านระบบ (ควบคุมปุ่ม “สมัคร” หน้า home)
+    allow_register = models.BooleanField(
+        default=True,
+        verbose_name="เปิดให้ลงทะเบียนผ่านระบบ"
+    )
+
+    # ✅ ไฟล์รูป / เอกสารกำหนดการ
     image = models.ImageField(upload_to='activity_images/', null=True, blank=True, verbose_name="รูปภาพกิจกรรม")
     schedule = models.FileField(upload_to='schedules/', null=True, blank=True, verbose_name="กำหนดการ (ไฟล์)")
 
+    # ✅ พิกัดแผนที่
     map_lat = models.FloatField(blank=True, null=True, verbose_name="ละติจูด")
     map_lng = models.FloatField(blank=True, null=True, verbose_name="ลองจิจูด")
+
+    # ✅ เลือกว่าจะสร้างกลุ่มแชตให้กิจกรรมนี้หรือไม่ (ใช้ต่อในอนาคต)
+    create_group = models.BooleanField(
+        default=False,
+        verbose_name="สร้างกลุ่มสำหรับกิจกรรมนี้"
+    )
 
     organizer = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -110,7 +134,7 @@ class Post(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="สร้างเมื่อ")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="แก้ไขล่าสุด")
 
-    # ✅ เพิ่มระบบถูกใจและจัดเก็บ
+    # ✅ ระบบถูกใจและจัดเก็บ
     likes = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name='liked_posts', blank=True
     )

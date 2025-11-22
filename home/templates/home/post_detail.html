@@ -1,93 +1,491 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="container mt-5 d-flex justify-content-center">
-    <div class="card shadow-sm border-0" style="max-width: 750px; width: 100%; border-radius: 16px;">
-        <!-- ส่วนหัว -->
-        <div class="card-header bg-white border-0 d-flex align-items-center justify-content-between px-3 pt-3">
-            <div class="d-flex align-items-center">
-                <img src="{{ post.organizer.profile.profile_picture.url }}" 
-                     alt="Profile Picture" 
-                     class="rounded-circle me-2" 
-                     width="45" height="45"
-                     style="object-fit: cover;">
-                <div>
-                    <h6 class="mb-0 fw-bold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</h6>
-                    <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
-                </div>
-            </div>
-            <button class="btn btn-outline-secondary btn-sm">
-                <i class="fa-regular fa-user-plus"></i> ติดตาม
-            </button>
-        </div>
+<style>
+  /* ให้รูปโปรไฟล์ทั้งเจ้าของกิจกรรมและคนรีวิวกลมสมส่วน */
+  .avatar-circle-40 {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
 
-        <!-- ส่วนภาพกิจกรรม -->
+  /* ปรับ modal รายชื่อผู้สมัครให้สมส่วนสวย */
+  #registrantModal .modal-dialog {
+    max-width: 1100px;
+  }
+
+  #registrantModal .table-responsive {
+    max-height: 60vh; /* เลื่อนในกรอบ ไม่ล้นจอ */
+  }
+
+  #registrantModal thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 1;
+  }
+
+  #registrantModal .table th,
+  #registrantModal .table td {
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+</style>
+
+<div class="container-fluid px-4 mt-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+
+      <!-- กลับหน้าหลัก -->
+      <a href="{% url 'home:home' %}" class="text-decoration-none text-dark d-inline-flex align-items-center mb-3">
+        <i class="fa-solid fa-arrow-left me-2"></i> กลับหน้าหลัก
+      </a>
+
+      <!-- การ์ดรายละเอียดกิจกรรม -->
+      <div class="bg-white shadow-sm rounded-4 overflow-hidden position-relative">
+
         {% if post.image %}
-        <div class="post-images">
-            <img src="{{ post.image.url }}" class="img-fluid w-100 rounded-0" alt="{{ post.title }}">
+        <!-- รูปปกด้านบนแบบเต็มกว้าง -->
+        <div class="w-100" style="max-height: 340px; overflow: hidden;">
+          <img
+            src="{{ post.image.url }}"
+            alt="{{ post.title }}"
+            class="w-100"
+            style="object-fit: cover;"
+          />
         </div>
         {% endif %}
 
-        <!-- ส่วนเนื้อหา -->
-        <div class="card-body">
-            <h5 class="fw-bold">{{ post.title }}</h5>
-            <p class="text-muted mb-1">
-                วันที่: {{ post.event_date|date:"j F Y" }}
-            </p>
-            <p class="text-muted mb-3">
-                สถานที่: {{ post.location }}
-            </p>
+        <!-- เนื้อหาใต้รูป -->
+        <div class="p-4">
 
-            <p>{{ post.description|linebreaks }}</p>
-
-            <p class="text-muted small mb-0">
-                จำนวนที่รับสมัคร: <strong>{{ post.slots_available }}</strong> คน
-            </p>
-        </div>
-
-        <!-- ส่วนท้าย -->
-        <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center">
-            <div class="d-flex align-items-center gap-3 text-muted">
-                <i class="fa-regular fa-heart fs-5"></i>
-                <i class="fa-regular fa-bookmark fs-5"></i>
-                <i class="fa-solid fa-share-nodes fs-5"></i>
+          <!-- ส่วนหัว: ชื่อกิจกรรม + เจ้าของโพสต์ + ข้อมูลด้านขวา -->
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="pe-3">
+              <h3 class="fw-bold mb-2">{{ post.title }}</h3>
+              <p class="mb-1 text-muted">
+                📅 {{ post.event_date|date:"j F Y" }}
+              </p>
+              <p class="mb-1 text-muted">
+                📍 {{ post.location }}
+              </p>
             </div>
-            <button class="btn btn-success px-4 fw-semibold">
-                สมัคร
-            </button>
-        </div>
 
-        <div class="px-3 pb-3">
-            <a href="{% url 'home' %}" class="text-decoration-none text-muted">
-                ← กลับไปหน้าหลัก
-            </a>
+            <!-- โปรไฟล์ + สถานะเปิดรับ -->
+            <div class="text-end">
+              <div class="d-flex align-items-center justify-content-end mb-1">
+                {% if post.organizer.profile.profile_picture %}
+                  <img
+                    src="{{ post.organizer.profile.profile_picture.url }}"
+                    class="avatar-circle-40 me-2"
+                    alt="{{ post.organizer.get_full_name }}"
+                  />
+                {% else %}
+                  <img
+                    src="{% static 'images/default_profile.png' %}"
+                    class="avatar-circle-40 me-2"
+                    alt="Default profile"
+                  />
+                {% endif %}
+                <div class="text-start">
+                  <div class="fw-semibold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</div>
+                  <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+                </div>
+              </div>
+
+              {# แสดงจำนวนเปิดรับจาก registrations / slots_available #}
+              {% with registered_count=post.registrations.count %}
+              <div class="small text-muted">
+                เปิดรับ {{ registered_count }}/{{ post.slots_available }}
+                {% if registered_count > 0 %}
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm p-0 ms-2 align-baseline"
+                    data-bs-toggle="modal"
+                    data-bs-target="#registrantModal"
+                  >
+                    ดูรายชื่อผู้สมัคร ({{ registered_count }})
+                  </button>
+                {% endif %}
+              </div>
+              {% endwith %}
+            </div>
+          </div>
+
+          <!-- รายละเอียดกิจกรรม -->
+          <div class="mb-3">
+            <p class="mb-0">
+              {{ post.description|linebreaksbr }}
+            </p>
+          </div>
+
+          <!-- ข้อมูลเพิ่มเติม (ค่าใช้จ่าย + หมวดหมู่) -->
+          <div class="d-flex justify-content-between align-items-center mb-3 small text-muted">
+            <span>
+              {% if post.fee %}
+                ค่าใช้จ่าย: {{ post.fee }} บาท
+              {% else %}
+                ไม่เสียค่าใช้จ่าย
+              {% endif %}
+            </span>
+            <span>หมวดหมู่: {{ post.category }}</span>
+          </div>
+
+          <!-- แถวล่าง: ปุ่มกำหนดการ + ไอคอน + สมัคร -->
+          <div class="d-flex justify-content-between align-items-center mt-2">
+
+            <!-- ด้านซ้าย: ปุ่มเปิดกำหนดการ -->
+            <button
+              type="button"
+              class="btn btn-link text-dark p-0 d-inline-flex align-items-center"
+              id="openScheduleBtn"
+            >
+              <i class="fa-solid fa-arrow-left me-2"></i> กำหนดการ
+            </button>
+
+            <!-- ด้านขวา: ไอคอน + ปุ่มสมัคร -->
+            <div class="d-flex align-items-center gap-3">
+
+              {% if user.is_authenticated %}
+              <!-- LIKE -->
+              <button
+                type="button"
+                class="btn btn-link p-0 like-btn"
+                data-id="{{ post.id }}"
+                aria-label="like"
+              >
+                {% if user in post.likes.all %}
+                  <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
+                {% else %}
+                  <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
+                {% endif %}
+              </button>
+
+              <!-- COMMENT (เด้งไปส่วนคอมเมนต์ด้านล่าง) -->
+              <a
+                href="#comments"
+                class="text-dark"
+                aria-label="comments"
+              >
+                <i class="fa-regular fa-comment fs-5"></i>
+              </a>
+
+              <!-- SAVE -->
+              <button
+                type="button"
+                class="btn btn-link p-0 save-btn"
+                data-id="{{ post.id }}"
+                aria-label="save"
+              >
+                {% if user in post.saves.all %}
+                  <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
+                {% else %}
+                  <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
+                {% endif %}
+              </button>
+              {% endif %}
+
+              <!-- สมัคร: ไปหน้า register_activity โดยตรง และโชว์เฉพาะถ้า allow_register = True -->
+              {% if post.allow_register %}
+              <a
+                href="{% url 'activity_register:register_activity' post.id %}"
+                class="btn btn-success rounded-pill px-4 fw-semibold"
+              >
+                สมัคร
+              </a>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- ส่วนรีวิว / ความคิดเห็น -->
+          <div id="comments" class="mt-4 border-top pt-3">
+            <h6 class="fw-bold mb-2">รีวิวจากผู้เข้าร่วมกิจกรรม</h6>
+
+            {% if review_count > 0 %}
+              <!-- สรุปคะแนนเฉลี่ย -->
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= avg_rating_int %}
+                      <i class="fa-solid fa-star text-warning"></i>
+                    {% else %}
+                      <i class="fa-regular fa-star text-warning"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                <div class="small text-muted">
+                  คะแนนเฉลี่ย {{ avg_rating|floatformat:1 }} จาก {{ review_count }} รีวิว
+                </div>
+              </div>
+
+              <!-- รายการรีวิว -->
+              {% for review in reviews %}
+                <div class="d-flex mb-3">
+                  <!-- รูปโปรไฟล์คนรีวิว -->
+                  <div class="me-3">
+                    {% if review.user.profile.profile_picture %}
+                      <img src="{{ review.user.profile.profile_picture.url }}"
+                           class="avatar-circle-40"
+                           alt="{{ review.user.get_full_name }}">
+                    {% else %}
+                      <img src="{% static 'images/default_profile.png' %}"
+                           class="avatar-circle-40"
+                           alt="Default profile">
+                    {% endif %}
+                  </div>
+
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between">
+                      <div>
+                        <strong>{{ review.user.first_name }} {{ review.user.last_name }}</strong>
+                        <div class="small text-muted">
+                          {{ review.created_at|date:"j M Y H:i" }}
+                        </div>
+                      </div>
+                      <div>
+                        {% for i in "12345" %}
+                          {% if forloop.counter <= review.rating %}
+                            <i class="fa-solid fa-star text-warning"></i>
+                          {% else %}
+                            <i class="fa-regular fa-star text-warning"></i>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+
+                    {% if review.comment %}
+                      <p class="mb-2 mt-1">{{ review.comment|linebreaksbr }}</p>
+                    {% endif %}
+
+                    {% if review.image1 or review.image2 %}
+                      <div class="d-flex gap-2 mb-1">
+                        {% if review.image1 %}
+                          <img src="{{ review.image1.url }}" class="rounded"
+                               style="width: 90px; height: 90px; object-fit: cover;">
+                        {% endif %}
+                        {% if review.image2 %}
+                          <img src="{{ review.image2.url }}" class="rounded"
+                               style="width: 90px; height: 90px; object-fit: cover;">
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted small mb-0">
+                ยังไม่มีรีวิวสำหรับกิจกรรมนี้
+              </p>
+            {% endif %}
+          </div>
+
         </div>
+      </div>
+
     </div>
+  </div>
 </div>
 
-<style>
-    .card {
-        border-radius: 16px;
-        overflow: hidden;
-        background-color: #fff;
-    }
-    .card-header button:hover {
-        background-color: #007bff;
-        color: #fff;
-    }
-    .post-images img {
-        max-height: 400px;
-        object-fit: cover;
-    }
-    .btn-success {
-        border-radius: 10px;
-    }
-    .fa-regular, .fa-solid {
-        cursor: pointer;
-        transition: color 0.2s ease;
-    }
-    .fa-regular:hover, .fa-solid:hover {
-        color: #007bff;
-    }
-</style>
+<!-- OVERLAY แสดงกำหนดการ (ใช้คอลัมน์ schedule) -->
+<div
+  id="scheduleModal"
+  class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center"
+  style="background: rgba(0,0,0,0.35); z-index: 1050;"
+>
+  <div class="bg-white rounded-4 shadow-lg p-4"
+       style="max-width: 780px; width: 96%; max-height: 90vh; overflow-y: auto; position: relative;">
+
+    <!-- ปุ่มปิด -->
+    <button
+      type="button"
+      class="btn-close position-absolute"
+      style="top: 14px; right: 18px;"
+      id="closeScheduleBtn"
+      aria-label="Close"
+    ></button>
+
+    <!-- หัวกำหนดการ -->
+    <div class="d-flex align-items-center mb-3">
+      <button
+        type="button"
+        class="btn btn-link text-dark p-0 me-2"
+        id="closeScheduleBack"
+      >
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <h5 class="fw-bold mb-0">กำหนดการกิจกรรม</h5>
+    </div>
+
+    {% if post.schedule %}
+      <!-- ถ้า schedule เป็นไฟล์รูป จะโชว์เป็นรูปใหญ่ -->
+      <div class="mb-3 text-center">
+        <img
+          src="{{ post.schedule.url }}"
+          alt="กำหนดการกิจกรรม"
+          class="img-fluid rounded"
+        />
+      </div>
+
+      <!-- ปุ่มดาวน์โหลดไฟล์กำหนดการ -->
+      <div class="text-center mt-2">
+        <a href="{{ post.schedule.url }}" class="btn btn-outline-secondary btn-sm" download>
+          ดาวน์โหลดกำหนดการ
+        </a>
+      </div>
+    {% else %}
+      <p class="text-muted small mb-0">
+        ยังไม่มีไฟล์กำหนดการสำหรับกิจกรรมนี้
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+{# MODAL: รายชื่อผู้สมัคร ใช้ Bootstrap modal ให้สวยสมส่วน #}
+<div class="modal fade" id="registrantModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4">
+      <div class="modal-header border-0 pb-2">
+        <h5 class="modal-title fw-semibold">รายชื่อผู้สมัครกิจกรรม</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+        <div class="text-muted small mb-2">
+          รวม {{ post.registrations.count }} คน
+        </div>
+
+        {% if post.registrations.count %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 60px;">ลำดับ</th>
+                  <th scope="col">ชื่อ-นามสกุล</th>
+                  <th scope="col">ชื่อเล่น</th>
+
+                  {% if user.is_authenticated and user == post.organizer %}
+                    <th scope="col">วันเกิด</th>
+                    <th scope="col">เพศ</th>
+                    <th scope="col">ที่อยู่ปัจจุบัน</th>
+                    <th scope="col">เบอร์โทร</th>
+                    <th scope="col">อีเมล</th>
+                    <th scope="col">ช่องทางติดต่อ</th>
+                    <th scope="col">โรคประจำตัว</th>
+                    <th scope="col">แพ้อาหาร</th>
+                    <th scope="col">แพ้ยา</th>
+                    <th scope="col">เข้าร่วมภาคสนาม</th>
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for reg in post.registrations.all %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ reg.prefix }} {{ reg.first_name }} {{ reg.last_name }}</td>
+                    <td>{{ reg.user.profile.nickname|default_if_none:"-"|default:"-" }}</td>
+
+                    {% if user.is_authenticated and user == post.organizer %}
+                      <td>{{ reg.birth_date|date:"d/m/Y" }}</td>
+                      <td>{{ reg.gender }}</td>
+                      <td>{{ reg.current_address }}</td>
+                      <td>{{ reg.phone }}</td>
+                      <td>{{ reg.email }}</td>
+                      <td>{{ reg.contact_channel }}</td>
+                      <td>{{ reg.chronic_disease|default:"-" }}</td>
+                      <td>{{ reg.food_allergy|default:"-" }}</td>
+                      <td>{{ reg.drug_allergy|default:"-" }}</td>
+                      <td>{{ reg.field_ability }}</td>
+                    {% endif %}
+                  </tr>
+                {% empty %}
+                  <tr>
+                    <td colspan="14" class="text-center text-muted">
+                      ยังไม่มีผู้สมัครสำหรับกิจกรรมนี้
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">
+            ยังไม่มีผู้สมัครสำหรับกิจกรรมนี้
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const openScheduleBtn   = document.getElementById('openScheduleBtn');
+  const scheduleModal     = document.getElementById('scheduleModal');
+  const closeScheduleBtn  = document.getElementById('closeScheduleBtn');
+  const closeScheduleBack = document.getElementById('closeScheduleBack');
+
+  function openSchedule() {
+    scheduleModal.classList.remove('d-none');
+    scheduleModal.classList.add('d-flex');
+  }
+  function closeSchedule() {
+    scheduleModal.classList.add('d-none');
+    scheduleModal.classList.remove('d-flex');
+  }
+
+  if (openScheduleBtn && scheduleModal) {
+    openScheduleBtn.addEventListener('click', openSchedule);
+  }
+  if (closeScheduleBtn) {
+    closeScheduleBtn.addEventListener('click', closeSchedule);
+  }
+  if (closeScheduleBack) {
+    closeScheduleBack.addEventListener('click', closeSchedule);
+  }
+  if (scheduleModal) {
+    scheduleModal.addEventListener('click', (e) => {
+      if (e.target === scheduleModal) {
+        closeSchedule();
+      }
+    });
+  }
+
+  // LIKE
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const res = await fetch(`/post/${id}/toggle-like/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const icon = document.getElementById(`like-icon-${id}`);
+      icon.className = data.liked
+        ? 'fas fa-heart fs-5 text-danger'
+        : 'far fa-heart fs-5';
+    });
+  });
+
+  // SAVE
+  document.querySelectorAll('.save-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const res = await fetch(`/post/${id}/toggle-save/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const icon = document.getElementById(`save-icon-${id}`);
+      icon.className = data.saved
+        ? 'fas fa-bookmark fs-5 text-primary'
+        : 'far fa-bookmark fs-5';
+    });
+  });
+});
+</script>
 {% endblock %}

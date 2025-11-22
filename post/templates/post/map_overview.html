@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid p-0" style="font-family: 'Kanit', sans-serif;">
+  <div class="map-header text-center py-4 bg-light shadow-sm">
+    <h3 class="fw-bold mb-1">📍 แผนที่กิจกรรมทั้งหมด</h3>
+    <p class="text-muted mb-3">คลิกที่หมุดเพื่อดูรายละเอียดกิจกรรม</p>
+    <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">← กลับหน้าหลัก</a>
+  </div>
+
+  <div id="map" style="height: 80vh; width: 100%;"></div>
+</div>
+
+<!-- ✅ Leaflet CDN -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid p-0" style="font-family: 'Kanit', sans-serif;">
+  <div class="map-header text-center py-4 bg-light shadow-sm">
+    <h3 class="fw-bold mb-1">📍 แผนที่กิจกรรมทั้งหมด</h3>
+    <p class="text-muted mb-3">คลิกหมุดเพื่อดูรายละเอียดกิจกรรม</p>
+    <a href="{% url 'home' %}" class="btn btn-outline-secondary btn-sm">← กลับหน้าหลัก</a>
+  </div>
+
+  <div id="map" style="height: 80vh; width: 100%;"></div>
+</div>
+
+<!-- ✅ Leaflet CDN -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- ✅ เก็บข้อมูลโพสต์ทั้งหมดในรูป JSON -->
+{{ posts|json_script:"posts-data" }}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // สร้างแผนที่เริ่มต้น
+  const map = L.map('map').setView([15.2294, 104.8560], 8); // ศูนย์กลางอุบลราชธานี
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  // ✅ อ่านข้อมูลจาก JSON ที่ Django ส่งมา
+  const postsData = JSON.parse(document.getElementById("posts-data").textContent);
+
+  postsData.forEach(post => {
+    if (post.map_lat && post.map_lng) {
+      const marker = L.marker([post.map_lat, post.map_lng]).addTo(map);
+      const popup = `
+        <div style="min-width:180px">
+          <h6 class="fw-bold mb-1">${post.title}</h6>
+          <p class="text-muted small mb-1">${post.location || 'ไม่ระบุสถานที่'}</p>
+          <a href="/post/${post.id}/" class="btn btn-sm btn-primary mt-2">ดูรายละเอียด</a>
+        </div>`;
+      marker.bindPopup(popup);
+    }
+  });
+});
+</script>
+
+<style>
+  body {
+    background-color: #f8f9fa !important;
+  }
+  .map-header {
+    border-bottom: 1px solid #e5e5e5;
+  }
+  #map .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  }
+</style>
+{% endblock %}
+
+
+<!-- ✅ ดึงข้อมูลโพสต์จาก Django -->
+<script id="posts-data" type="application/json">
+  {{ posts|json_script:"posts" }}
+</script>
+
+<script>
+  const postsData = JSON.parse(document.getElementById("posts-data").textContent);
+
+  postsData.forEach(post => {
+    if (post.map_lat && post.map_lng) {
+      const marker = L.marker([post.map_lat, post.map_lng]).addTo(map);
+      const popupContent = `
+        <div style="min-width:180px">
+          <h6 class="fw-bold mb-1">${post.title}</h6>
+          <p class="text-muted small mb-1">${post.location || 'ไม่ระบุสถานที่'}</p>
+          <a href="/post/${post.id}/" class="btn btn-sm btn-primary mt-2">ดูรายละเอียด</a>
+        </div>`;
+      marker.bindPopup(popupContent);
+    }
+  });
+</script>
+
+<style>
+  body {
+    background-color: #f8f9fa !important;
+  }
+  .map-header {
+    border-bottom: 1px solid #e5e5e5;
+  }
+  #map .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+  }
+</style>
+{% endblock %}

@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f5f6f7 !important;
+  }
+
+  /* กล่องโปรไฟล์หลัก */
+  .profile-header {
+    background-color: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+  }
+
+  /* พื้นหลัง (cover) */
+  .cover-area {
+    position: relative;
+    width: 100%;
+    height: 230px;
+    background-color: #d9d9d9; /* สีเทาเริ่มต้น */
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    overflow: hidden;
+  }
+
+  .cover-area img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* ✅ รูปโปรไฟล์: ให้อยู่กึ่งกลางขอบล่างของ cover */
+  .profile-picture-wrapper {
+    position: relative;
+    height: 0;
+  }
+
+  .profile-picture {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 6px solid #fff;
+    position: absolute;
+    top: -75px; /* ครึ่งหนึ่งของความสูง */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+
+  /* ข้อมูลโปรไฟล์ */
+  .profile-info {
+    text-align: center;
+    padding-top: 90px;
+    padding-bottom: 1rem;
+  }
+
+  .username {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  .follow-btn {
+    background-color: #e8eeff;
+    color: #2c2c2c;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
+  }
+  .follow-btn:hover {
+    background-color: #d0dcff;
+  }
+
+  /* การ์ดโพสต์ */
+  .post-card {
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+  }
+
+  /* sidebar */
+  .activity-sidebar {
+    background-color: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    padding: 1.2rem;
+  }
+</style>
+
+<div class="container mt-4 mb-5">
+  <div class="profile-header">
+    <!-- ✅ พื้นหลัง cover -->
+    <div class="cover-area">
+      {% if profile.cover_picture %}
+        <img src="{{ profile.cover_picture.url }}" alt="cover">
+      {% else %}
+        <!-- ไม่มีรูป cover จะใช้พื้นเทา -->
+      {% endif %}
+    </div>
+
+    <!-- ✅ รูปโปรไฟล์ (ลอยครึ่งขอบล่าง) -->
+    <div class="profile-picture-wrapper">
+      <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture">
+    </div>
+
+    <!-- ✅ ข้อมูลผู้ใช้ -->
+    <div class="profile-info">
+      <h3 class="username">{{ target_user.first_name }} {{ target_user.last_name }}</h3>
+      <p class="text-muted">{{ target_user.email }}</p>
+      <div class="d-flex justify-content-center gap-4 mb-3">
+        <span><strong>{{ followers_count }}</strong> ผู้ติดตาม</span>
+        <span><strong>{{ following_count }}</strong> กำลังติดตาม</span>
+      </div>
+
+      {% if request.user.id != target_user.id %}
+      <form method="post" action="{% url 'follow_toggle' target_user.id %}">
+        {% csrf_token %}
+        {% if is_following %}
+        <button class="btn follow-btn px-4"><i class="fa-solid fa-user-minus me-1"></i> เลิกติดตาม</button>
+        {% else %}
+        <button class="btn follow-btn px-4"><i class="fa-solid fa-user-plus me-1"></i> ติดตาม</button>
+        {% endif %}
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ✅ โพสต์และกิจกรรม -->
+  <div class="row">
+    <div class="col-lg-8 mb-4">
+      <h5 class="fw-semibold mb-3">โพสต์</h5>
+      {% if posts %}
+      {% for post in posts %}
+      <div class="post-card mb-4 p-3">
+        <div class="d-flex align-items-center mb-3">
+          <img src="{{ profile.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit:cover;">
+          <div>
+            <p class="mb-0 fw-semibold">{{ target_user.first_name }} {{ target_user.last_name }}</p>
+            <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+          </div>
+        </div>
+        {% if post.image %}
+        <img src="{{ post.image.url }}" class="img-fluid rounded-3 mb-3" alt="{{ post.title }}">
+        {% endif %}
+        <p class="fw-semibold">{{ post.title }}</p>
+        <p class="text-muted">{{ post.description|truncatechars:150 }}</p>
+        <a href="{% url 'post:post_detail' post.id %}" class="text-decoration-none text-primary fw-semibold">ดูเพิ่มเติม</a>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="text-center text-muted mt-5">ยังไม่มีโพสต์กิจกรรม</div>
+      {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+      <div class="activity-sidebar">
+        <h6 class="fw-semibold mb-3">กิจกรรมที่เคยเข้าร่วม</h6>
+        <ul class="list-unstyled mb-0">
+          <li>กิจกรรม แบกเป้เพื่อสังคม</li>
+          <li>กิจกรรม ปันน้ำใจสร้างบ้านเด็ก</li>
+          <li>กิจกรรม โครงการฟื้นป่า</li>
+          <li>กิจกรรม โครงการแบ่งปันสุข</li>
+          <li>กิจกรรม อาสาสมัครช่วยสอนหนังสือ</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

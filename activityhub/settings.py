@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'home',
     'approver',
     'post.apps.PostConfig',
+    'activity_register',
+    
     
 ]
 

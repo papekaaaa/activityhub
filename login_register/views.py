@@ -56,7 +56,7 @@ def login_view(request):
                 
                 else: # user.role == User.Role.USER หรือค่าอื่นๆ
                     messages.success(request, "เข้าสู่ระบบสำเร็จ")
-                    return redirect('home')
+                    return redirect('home:home')
                 # --- จบส่วนที่เพิ่มเข้ามา ---
 
             else:
@@ -78,5 +78,5 @@ def logout_view(request):
     messages.success(request, "คุณออกจากระบบสำเร็จแล้ว")
     
     # 2. ส่งผู้ใช้กลับไปยังหน้า login
-    return redirect('index')
+    return redirect('home:index')
 

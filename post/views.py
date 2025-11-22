@@ -88,13 +88,34 @@
 #         form = PostForm()
 #     return render(request, 'post/create_post.html', {'form': form})
 
+
+# def create_post(request):
+#     if request.method == 'POST':
+#         form = PostForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             post = form.save(commit=False)
+#             post.organizer = request.user
+#             post.save()
+#             messages.success(request, 'สร้างกิจกรรมของคุณเรียบร้อยแล้ว และได้ส่งไปเพื่อรอการอนุมัติ')
+#             return redirect('profile')
+#     else:
+#         form = PostForm()
+
+#     context = {'form': form, 'title': 'สร้างกิจกรรมใหม่'}
+#     return render(request, 'post/post_form.html', context)
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, JsonResponse
 from django.views.decorators.http import require_POST
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import Avg
 from .models import Post
 from .forms import PostForm
+from activity_register.models import ActivityReview
+import json
+
 
 # ------------------------------
 # ฟังก์ชัน: สร้างกิจกรรมใหม่
@@ -106,14 +127,32 @@ def create_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.organizer = request.user
+            post.map_lat = request.POST.get('map_lat')
+            post.map_lng = request.POST.get('map_lng')
             post.save()
-            messages.success(request, 'สร้างกิจกรรมของคุณเรียบร้อยแล้ว และได้ส่งไปเพื่อรอการอนุมัติ')
-            return redirect('profile')
+            messages.success(request, 'สร้างกิจกรรมสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ')
+            return redirect('home:home')
     else:
         form = PostForm()
 
-    context = {'form': form, 'title': 'สร้างกิจกรรมใหม่'}
-    return render(request, 'post/post_form.html', context)
+    # ดึง url รูปโปรไฟล์ของ user
+    profile_pic_url = None
+    user = request.user
+
+    # กรณีมีโมเดล Profile แยก เช่น user.profile.profile_picture
+    if hasattr(user, "profile") and getattr(user.profile, "profile_picture", None):
+        if user.profile.profile_picture:
+            profile_pic_url = user.profile.profile_picture.url
+
+    # ถ้าเก็บรูปไว้บน User โดยตรง เช่น user.profile_picture
+    elif hasattr(user, "profile_picture") and user.profile_picture:
+        profile_pic_url = user.profile_picture.url
+
+    context = {
+        "form": form,
+        "profile_pic_url": profile_pic_url,
+    }
+    return render(request, 'post/create_post.html', context)
 
 
 # ------------------------------
@@ -122,19 +161,34 @@ def create_post(request):
 @login_required
 def post_update_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
+
     if post.organizer != request.user:
         return HttpResponseForbidden("คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้")
 
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
-            form.save()
+            post = form.save(commit=False)
+
+            # อัปเดตพิกัดจากฟอร์มเหมือนตอนสร้างโพสต์
+            post.map_lat = request.POST.get('map_lat') or None
+            post.map_lng = request.POST.get('map_lng') or None
+
+            post.save()
             messages.success(request, 'กิจกรรมของคุณได้รับการอัปเดตแล้ว!')
             return redirect('post:post_detail', post_id=post.id)
     else:
         form = PostForm(instance=post)
 
-    return render(request, 'post/post_form.html', {'form': form, 'title': 'แก้ไขกิจกรรม'})
+    return render(
+        request,
+        'post/post_form.html',
+        {
+            'form': form,
+            'title': 'แก้ไขกิจกรรม',
+            'post': post,
+        },
+    )
 
 
 # ------------------------------
@@ -155,15 +209,34 @@ def post_delete_view(request, post_id):
 
 
 # ------------------------------
-# ฟังก์ชัน: แสดงรายละเอียดกิจกรรม
+# ฟังก์ชัน: แสดงรายละเอียดกิจกรรม + รีวิว
 # ------------------------------
 def post_detail_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    return render(request, 'post/post_detail.html', {'post': post})
+
+    # ดึงรีวิวทั้งหมดของโพสต์นี้
+    reviews = (
+        post.activity_reviews
+        .select_related('user')
+        .order_by('-created_at')
+    )
+
+    avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+    avg_rating_int = int(round(avg_rating)) if avg_rating else 0
+    review_count = reviews.count()
+
+    context = {
+        'post': post,
+        'reviews': reviews,
+        'avg_rating': avg_rating,
+        'avg_rating_int': avg_rating_int,
+        'review_count': review_count,
+    }
+    return render(request, 'post/post_detail.html', context)
 
 
 # ------------------------------
-# ✅ ระบบ Toggle ถูกใจ / จัดเก็บ
+# ✅ Toggle ถูกใจ
 # ------------------------------
 @login_required
 @require_POST
@@ -179,6 +252,9 @@ def toggle_like(request, post_id):
     return JsonResponse({'liked': liked, 'likes_count': post.likes.count()})
 
 
+# ------------------------------
+# ✅ Toggle จัดเก็บ
+# ------------------------------
 @login_required
 @require_POST
 def toggle_save(request, post_id):
@@ -192,23 +268,56 @@ def toggle_save(request, post_id):
         saved = True
     return JsonResponse({'saved': saved, 'saves_count': post.saves.count()})
 
-# ------------------------------
-# ฟังก์ชัน: แสดงกิจกรรมที่ถูกใจและบันทึกไว้
-# ------------------------------
-from django.contrib.auth import get_user_model
-User = get_user_model()
 
+# ------------------------------
+# ฟังก์ชัน: แสดงกิจกรรมที่ถูกใจ
+# ------------------------------
 @login_required
 def liked_posts_view(request):
-    """แสดงกิจกรรมที่ผู้ใช้กดถูกใจ"""
     liked_posts = request.user.liked_posts.all().order_by('-created_at')
     context = {'posts': liked_posts, 'title': 'กิจกรรมที่กดถูกใจ ❤️'}
     return render(request, 'post/liked_posts.html', context)
 
 
+# ------------------------------
+# ฟังก์ชัน: แสดงกิจกรรมที่บันทึกไว้
+# ------------------------------
 @login_required
 def saved_posts_view(request):
-    """แสดงกิจกรรมที่ผู้ใช้บันทึกไว้"""
     saved_posts = request.user.saved_posts.all().order_by('-created_at')
     context = {'posts': saved_posts, 'title': 'กิจกรรมที่บันทึกไว้ 🔖'}
     return render(request, 'post/saved_posts.html', context)
+
+
+# ------------------------------
+# ฟังก์ชัน: แสดงทุกกิจกรรมบนแผนที่
+# ------------------------------
+@login_required
+def map_overview(request):
+    """
+    แผนที่กิจกรรม (สำหรับผู้ใช้ที่ล็อกอิน)
+    - แสดงหมุดทุกกิจกรรมที่มีพิกัด
+    - ใช้ geolocation แสดงตำแหน่งปัจจุบันของผู้ใช้
+    """
+    posts = Post.objects.filter(
+        status=Post.Status.APPROVED,
+        latitude__isnull=False,
+        longitude__isnull=False,
+    )
+
+    events = []
+    for p in posts:
+        events.append({
+            "id": p.id,
+            "title": p.title,
+            "lat": float(p.latitude),
+            "lng": float(p.longitude),
+            "location": p.location or "",
+            "date": p.event_date.strftime("%d %b %Y") if p.event_date else "",
+        })
+
+    context = {
+        "events_json": json.dumps(events, cls=DjangoJSONEncoder, ensure_ascii=False),
+        "enable_geolocation": True,
+    }
+    return render(request, "home/map.html", context)

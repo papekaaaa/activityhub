@@ -1,78 +1,254 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="p-4 p-md-5 mb-4 bg-white rounded-3 shadow-sm">
-    <div class="row align-items-center">
-        <div class="col-md-2 text-center">
-            <img src="{{ user.profile.profile_picture.url }}" 
-                 alt="Profile Picture" 
-                 class="img-fluid rounded-circle" 
-                 style="width: 120px; height: 120px; object-fit: cover;">
-        </div>
-        <div class="col-md-10">
-            <h2 class="fw-bold">{{ user.first_name }} {{ user.last_name }}</h2>
-            <p class="text-muted">{{ user.email }}</p>
-            <div>
-                <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm">
-                    <i class="fa-solid fa-pencil"></i> แก้ไขโปรไฟล์
-                </a>
-                <a href="{% url 'post:create_post' %}" class="btn btn-primary btn-sm">
-                    <i class="fa-solid fa-plus"></i> สร้างกิจกรรมใหม่
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
+<style>
+  body {
+    background-color: #f5f6f7 !important;
+  }
 
-<h3 class="mb-3">กิจกรรมของฉัน</h3>
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-    {% for post in user_posts %}
-        <div class="col">
-            <div class="card h-100 shadow-sm">
-                {% if post.image %}
-                    <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}" 
-                         style="height: 200px; object-fit: cover;">
-                {% endif %}
-                <div class="card-body">
-                    <h5 class="card-title">{{ post.title }}</h5>
-                    <p class="card-text">
-                        <span class="badge 
-                            {% if post.status == 'APPROVED' %} bg-success 
-                            {% elif post.status == 'PENDING' %} bg-warning text-dark
-                            {% else %} bg-danger {% endif %}">
-                            {{ post.get_status_display }}
-                        </span>
-                    </p>
-                </div>
-                <div class="card-footer bg-transparent border-0 d-flex justify-content-end gap-2 p-3">
-                    <a href="{% url 'post:post_detail' post.id %}" class="btn btn-outline-primary btn-sm">
-                        ดู
-                    </a>
-                    <a href="{% url 'post:post_edit' post.id %}" class="btn btn-outline-secondary btn-sm">
-                        แก้ไข
-                    </a>
-                    <button type="button" 
-                            class="btn btn-outline-danger btn-sm" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#deleteModal" 
-                            data-post-id="{{ post.id }}" 
-                            data-post-title="{{ post.title }}">
-                        ลบ
-                    </button>
-                </div>
-            </div>
-        </div>
-    {% empty %}
-        <div class="col-12">
-            <div class="text-center p-5 bg-light rounded-3">
-                <h4>คุณยังไม่ได้สร้างกิจกรรมใดๆ</h4>
-                <p class="text-muted">ลองสร้างกิจกรรมแรกของคุณได้เลย!</p>
-                <a href="{% url 'post:create_post' %}" class="btn btn-primary mt-2">
-                    สร้างกิจกรรม
+  /* กล่องโปรไฟล์หลัก */
+  .profile-header-box {
+    background-color: #fff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    margin-bottom: 2rem;
+  }
+
+  /* พื้นหลัง (cover) */
+  .cover-area {
+    position: relative;
+    width: 100%;
+    height: 230px;
+    background-color: #d9d9d9; /* ไม่มีรูป cover ใช้สีเทา */
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    overflow: hidden;
+  }
+
+  .cover-area img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* รูปโปรไฟล์ลอยทับ */
+  .profile-picture-wrapper {
+    position: relative;
+    height: 0;
+  }
+
+  .profile-picture-main {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 50%;
+    border: 6px solid #fff;
+    position: absolute;
+    top: -70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  }
+
+  /* ข้อมูลโปรไฟล์ */
+  .profile-info-main {
+    text-align: center;
+    padding-top: 88px;
+    padding-bottom: 1.25rem;
+  }
+
+  .profile-info-main h3 {
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+  }
+
+  /* แถบสถิติ + ปุ่มด้านขวา */
+  .profile-bottom-row {
+    border-top: 1px solid #eee;
+    padding: 0.9rem 1.5rem 1.1rem;
+  }
+
+  .profile-actions .btn {
+    border-radius: 999px;
+    font-size: 0.9rem;
+  }
+
+  /* การ์ดกิจกรรมของฉัน */
+  .my-activity-card {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .my-activity-card img {
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+  }
+
+  /* การ์ดกิจกรรมที่เคยลงทะเบียน */
+  .registered-box {
+    border-radius: 16px;
+  }
+</style>
+
+<div class="container mt-4 mb-5">
+
+  <!-- HEADER โปรไฟล์แบบมี cover -->
+  <div class="profile-header-box">
+    <!-- พื้นหลัง -->
+    <div class="cover-area">
+      {% if profile.cover_picture %}
+        <img src="{{ profile.cover_picture.url }}" alt="Cover">
+      {% endif %}
+    </div>
+
+    <!-- รูปโปรไฟล์ลอย -->
+    <div class="profile-picture-wrapper">
+      {% if profile.profile_picture %}
+        <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture-main">
+      {% else %}
+        <img src="{% static 'images/default_profile.png' %}" alt="Profile Picture" class="profile-picture-main">
+      {% endif %}
+    </div>
+
+    <!-- ข้อมูลผู้ใช้ตรงกลาง -->
+    <div class="profile-info-main">
+      <h3>{{ user.first_name }} {{ user.last_name }}</h3>
+      <p class="text-muted mb-1">{{ user.email }}</p>
+      <div class="d-flex justify-content-center gap-4 text-muted small">
+        <span><strong>{{ followers_count }}</strong> ผู้ติดตาม</span>
+        <span><strong>{{ following_count }}</strong> กำลังติดตาม</span>
+      </div>
+    </div>
+
+    <!-- แถวล่าง: สถิติ + ปุ่มด้านขวา -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center profile-bottom-row">
+      <div class="text-muted small mb-2 mb-md-0">
+        <!-- future info -->
+      </div>
+      <div class="profile-actions d-flex flex-wrap gap-2">
+        <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm">
+          <i class="fa-solid fa-pen me-1"></i> แก้ไขโปรไฟล์
+        </a>
+        <a href="{% url 'activity_register:edit_register_profile' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fa-solid fa-id-card-clip me-1"></i> แก้ไขข้อมูลการสมัครกิจกรรม
+        </a>
+        <a href="{% url 'post:create_post' %}" class="btn btn-primary btn-sm">
+          <i class="fa-solid fa-plus me-1"></i> สร้างกิจกรรมใหม่
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT: ซ้ายกิจกรรมของฉัน / ขวากิจกรรมที่เคยสมัคร -->
+  <div class="row g-4">
+    <!-- ซ้าย: กิจกรรมของฉัน -->
+    <div class="col-lg-8">
+      <h5 class="mb-3 fw-semibold">กิจกรรมของฉัน</h5>
+      <div class="row row-cols-1 row-cols-md-2 g-4">
+        {% for post in user_posts %}
+          <div class="col">
+            <div class="card h-100 shadow-sm my-activity-card">
+              {% if post.image %}
+                <img src="{{ post.image.url }}" class="card-img-top" alt="{{ post.title }}" style="height: 200px; object-fit: cover;">
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title mb-1 text-truncate">{{ post.title }}</h5>
+                <p class="card-text mb-1">
+                  <span class="badge
+                    {% if post.status == 'APPROVED' %} bg-success
+                    {% elif post.status == 'PENDING' %} bg-warning text-dark
+                    {% else %} bg-danger {% endif %}">
+                    {{ post.get_status_display }}
+                  </span>
+                </p>
+                <p class="text-muted small mb-0">
+                  📅 {{ post.event_date|date:"j M Y" }} · 📍 {{ post.location }}
+                </p>
+              </div>
+              <div class="card-footer bg-transparent border-0 d-flex justify-content-end gap-2 p-3">
+                <a href="{% url 'post:post_detail' post.id %}" class="btn btn-outline-primary btn-sm">
+                  ดู
                 </a>
+                <a href="{% url 'post:post_edit' post.id %}" class="btn btn-outline-secondary btn-sm">
+                  แก้ไข
+                </a>
+                <button type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#deleteModal"
+                        data-post-id="{{ post.id }}"
+                        data-post-title="{{ post.title }}">
+                  ลบ
+                </button>
+              </div>
             </div>
+          </div>
+        {% empty %}
+          <div class="col-12">
+            <div class="text-center p-5 bg-light rounded-3">
+              <h4>คุณยังไม่ได้สร้างกิจกรรมใดๆ</h4>
+              <p class="text-muted">ลองสร้างกิจกรรมแรกของคุณได้เลย!</p>
+              <a href="{% url 'post:create_post' %}" class="btn btn-primary mt-2">
+                สร้างกิจกรรม
+              </a>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ขวา: กิจกรรมที่เคยลงทะเบียน + ปุ่มไปหน้ากิจกรรมที่เคยเข้าร่วม -->
+    <div class="col-lg-4">
+      <div class="card shadow-sm border-0 registered-box">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3 d-flex justify-content-between align-items-center">
+            <span>กิจกรรมที่เคยลงทะเบียน</span>
+            <a href="{% url 'activity_register:joined_activities' %}"
+               class="btn btn-outline-secondary btn-sm">
+              กิจกรรมที่เคยเข้าร่วม
+            </a>
+          </h5>
+
+          {% if registrations %}
+            <div class="list-group list-group-flush">
+              {% for reg in registrations %}
+                <a href="{% url 'post:post_detail' reg.post.id %}"
+                   class="list-group-item list-group-item-action border-0 px-0 mb-2">
+                  <div class="d-flex justify-content-between">
+                    <div class="me-2">
+                      <div class="small fw-semibold text-truncate">
+                        {{ reg.post.title }}
+                      </div>
+                      <div class="text-muted small">
+                        📅 {{ reg.post.event_date|date:"j M Y" }} · 📍 {{ reg.post.location }}
+                      </div>
+                    </div>
+                    <span class="badge bg-success rounded-pill align-self-start">
+                      สมัครแล้ว
+                    </span>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <p class="text-muted small mb-0">
+              ยังไม่มีกิจกรรมที่คุณลงทะเบียน
+            </p>
+          {% endif %}
+
+          <p class="text-muted small mt-3 mb-0">
+            ข้อมูลการสมัครที่คุณแก้ไข จะถูกนำไปกรอกอัตโนมัติเมื่อสมัครกิจกรรมครั้งถัดไป
+          </p>
         </div>
-    {% endfor %}
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- Modal ยืนยันการลบ -->
@@ -89,8 +265,8 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
         <form id="deleteForm" method="POST">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger">ยืนยันการลบ</button>
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">ยืนยันการลบ</button>
         </form>
       </div>
     </div>
@@ -101,21 +277,17 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var deleteModal = document.getElementById('deleteModal');
-    if (deleteModal) {
-        deleteModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            var postId = button.getAttribute('data-post-id');
-            var postTitle = button.getAttribute('data-post-title');
-            var deleteUrl = `/post/${postId}/delete/`;
-            var modalTitle = deleteModal.querySelector('#postTitle');
-            var deleteForm = deleteModal.querySelector('#deleteForm');
-            modalTitle.textContent = postTitle;
-            deleteForm.setAttribute('action', deleteUrl);
-        });
-    }
+  var deleteModal = document.getElementById('deleteModal');
+  if (deleteModal) {
+    deleteModal.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      var postId = button.getAttribute('data-post-id');
+      var postTitle = button.getAttribute('data-post-title');
+      var deleteUrl = `/post/${postId}/delete/`;
+      deleteModal.querySelector('#postTitle').textContent = postTitle;
+      deleteModal.querySelector('#deleteForm').setAttribute('action', deleteUrl);
+    });
+  }
 });
 </script>
 {% endblock %}
-
-

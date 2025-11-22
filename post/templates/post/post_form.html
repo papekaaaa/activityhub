@@ -1,24 +1,450 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
-<div class="container mt-5 mb-5">
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card p-4 shadow-sm">
-                <h2 class="mb-4 border-bottom pb-3">{{ title }}</h2>
-                
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    
-                    {{ form.as_p }}
-
-                    <div class="mt-4">
-                        <button type="submit" class="btn btn-primary">บันทึก</button>
-                        <a href="{{ request.META.HTTP_REFERER|escape }}" class="btn btn-secondary">ยกเลิก</a>
-                    </div>
-                </form>
-            </div>
-        </div>
+<div class="container-fluid py-5">
+  <div class="post-card shadow-sm mx-auto">
+    <!-- ส่วนหัว -->
+    <div class="post-header d-flex justify-content-center align-items-center position-relative">
+      <h4 class="fw-bold mb-0">{{ title|default:"แก้ไขกิจกรรม" }}</h4>
+      <button class="btn-close-custom" type="button" onclick="history.back()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
+
+    <!-- โปรไฟล์ตรงกลาง -->
+    <div class="post-profile text-center my-3">
+      {% if request.user.profile and request.user.profile.profile_pic %}
+        <img src="{{ request.user.profile.profile_pic.url }}" class="profile-img" alt="profile" />
+      {% else %}
+        <img src="{% static 'images/default_profile.png' %}" class="profile-img" alt="profile" />
+      {% endif %}
+    </div>
+
+    {% if form.errors %}
+    <div class="alert alert-danger small mx-3">
+      กรุณากรอกข้อมูลให้ครบถ้วนตามที่กำหนด
+    </div>
+    {% endif %}
+
+    <!-- ฟอร์มแก้ไข -->
+    <form method="post" enctype="multipart/form-data" class="px-4 pb-4">
+      {% csrf_token %}
+
+      <div class="post-body">
+        <!-- คอลัมน์ซ้าย: ข้อมูลกิจกรรม -->
+        <div class="post-left">
+          <!-- ชื่อกิจกรรม -->
+          <input
+            type="text"
+            name="title"
+            placeholder="ชื่อกิจกรรม"
+            class="input-field mb-3"
+            required
+            value="{{ form.title.value|default_if_none:'' }}"
+          />
+
+          <!-- สถานที่ -->
+          <input
+            type="text"
+            name="location"
+            placeholder="สถานที่"
+            class="input-field mb-3"
+            required
+            value="{{ form.location.value|default_if_none:'' }}"
+          />
+
+          <!-- วันที่จัดกิจกรรม -->
+          <input
+            type="datetime-local"
+            name="event_date"
+            class="input-field mb-3"
+            value="{{ form.event_date.value|default_if_none:'' }}"
+          />
+
+          <!-- ค่าใช้จ่าย -->
+          <input
+            type="number"
+            name="fee"
+            class="input-field mb-3"
+            min="0"
+            placeholder="ค่าใช้จ่าย (บาท) หากไม่มีเว้นว่างไว้"
+            value="{{ form.fee.value|default_if_none:'' }}"
+          />
+
+          <!-- รายละเอียด -->
+          <textarea
+            name="description"
+            placeholder="คำอธิบาย/รายละเอียด"
+            class="input-field mb-3"
+            rows="4"
+          >{{ form.description.value|default_if_none:'' }}</textarea>
+
+          <!-- จำนวนคนที่รับสมัคร -->
+          <input
+            type="number"
+            name="slots_available"
+            placeholder="จำนวนคนที่รับสมัคร"
+            class="input-field mb-3"
+            min="1"
+            value="{{ form.slots_available.value|default_if_none:'' }}"
+            required
+          />
+
+          <!-- หมวดหมู่กิจกรรม -->
+          <select name="category" class="input-field mb-3" required>
+            <option value="">เลือกหมวดหมู่กิจกรรม</option>
+            {% with current=form.category.value %}
+              {% for value, label in form.fields.category.choices %}
+                <option value="{{ value }}" {% if value == current %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            {% endwith %}
+          </select>
+
+          <!-- แสดงรูปกิจกรรมปัจจุบัน (ถ้ามี) -->
+          {% if post.image %}
+            <div class="mb-2 small text-muted">
+              รูปกิจกรรมปัจจุบัน:
+            </div>
+            <div class="mb-3">
+              <img src="{{ post.image.url }}" alt="activity image" style="max-width: 100%; border-radius: 12px;">
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- คอลัมน์ขวา: แผนที่ -->
+        <div class="post-right">
+          <!-- hidden lat/lng -->
+          <input type="hidden" id="map_lat" name="map_lat" value="{{ form.map_lat.value|default_if_none:'' }}">
+          <input type="hidden" id="map_lng" name="map_lng" value="{{ form.map_lng.value|default_if_none:'' }}">
+
+          <label class="form-label fw-semibold mb-2">ปักหมุดตำแหน่งกิจกรรม</label>
+
+          <!-- ช่องค้นหาแผนที่ -->
+          <div class="map-search d-flex align-items-center gap-2 mb-2">
+            <input
+              type="text"
+              id="map-search-input"
+              class="form-control form-control-sm"
+              placeholder="ค้นหาสถานที่ เช่น มหาวิทยาลัยอุบลราชธานี"
+            />
+            <button type="button" id="map-search-btn" class="btn btn-outline-secondary btn-sm">
+              ค้นหา
+            </button>
+            <button type="button" id="map-clear-btn" class="btn btn-link btn-sm text-danger">
+              ลบหมุด
+            </button>
+          </div>
+
+          <div id="map" class="map-box mb-2"></div>
+
+          <div class="map-help small text-muted">
+            <strong>วิธีใช้งานแผนที่</strong><br>
+            • คลิกบนแผนที่เพื่อปักหมุดตำแหน่งกิจกรรม<br>
+            • ใช้ช่องค้นหาเพื่อกระโดดไปยังสถานที่ที่ต้องการ<br>
+            • ปุ่ม “ลบหมุด” จะลบตำแหน่งที่เลือกและเคลียร์ค่าพิกัด
+          </div>
+        </div>
+      </div>
+
+      <!-- footer ล่าง -->
+      <div class="post-footer d-flex justify-content-between align-items-center mt-4 flex-wrap gap-3">
+        <!-- ไอคอนอัปโหลด -->
+        <div class="icon-group d-flex gap-4 align-items-center">
+          <!-- อัปโหลดรูปกิจกรรม (ทับไฟล์เดิมได้) -->
+          <label class="icon-upload mb-0" title="เปลี่ยนรูปกิจกรรม">
+            <i class="fa-regular fa-image"></i>
+            <input type="file" name="image" hidden />
+          </label>
+
+          <!-- อัปโหลดไฟล์กำหนดการ (ทับไฟล์เดิมได้) -->
+          <label class="icon-upload mb-0" title="อัปโหลดไฟล์กำหนดการ">
+            <i class="fa-regular fa-clipboard"></i>
+            <input type="file" name="schedule" hidden />
+          </label>
+        </div>
+
+        <!-- ตัวเลือก สมัคร / สร้างกลุ่ม -->
+        <div class="d-flex align-items-center gap-3">
+          <label class="checkbox-label mb-0">
+            <input
+              type="checkbox"
+              name="allow_register"
+              {% if form.allow_register.value %}checked{% endif %}
+            />
+            เปิดให้ลงทะเบียนผ่านระบบ
+          </label>
+          <label class="checkbox-label mb-0">
+            <input
+              type="checkbox"
+              name="create_group"
+              {% if form.create_group.value %}checked{% endif %}
+            />
+            สร้างกลุ่มสำหรับกิจกรรมนี้
+          </label>
+        </div>
+
+        <!-- ปุ่ม บันทึก / ยกเลิก -->
+        <div class="d-flex gap-2">
+          <button type="button" class="btn-cancel" onclick="history.back()">ยกเลิก</button>
+          <button type="submit" class="btn-save">บันทึก</button>
+        </div>
+      </div>
+    </form>
+  </div>
 </div>
+
+<!-- Leaflet CDN -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // สร้างแผนที่เริ่มต้นที่อุบลราชธานี
+  const map = L.map('map').setView([15.2294, 104.8560], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  let marker;
+
+  const latInput = document.getElementById('map_lat');
+  const lngInput = document.getElementById('map_lng');
+
+  // ถ้ามีพิกัดเดิม ให้ปักหมุด
+  if (latInput.value && lngInput.value) {
+    const lat = parseFloat(latInput.value);
+    const lng = parseFloat(lngInput.value);
+    marker = L.marker([lat, lng]).addTo(map)
+      .bindPopup(`ตำแหน่งที่เลือก:<br>${lat.toFixed(6)}, ${lng.toFixed(6)}`)
+      .openPopup();
+    map.setView([lat, lng], 15);
+  }
+
+  // คลิกบนแผนที่เพื่อปักหมุด
+  map.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    if (marker) map.removeLayer(marker);
+
+    marker = L.marker([lat, lng]).addTo(map)
+      .bindPopup(`ตำแหน่งที่เลือก:<br>${lat.toFixed(6)}, ${lng.toFixed(6)}`)
+      .openPopup();
+
+    latInput.value = lat.toFixed(6);
+    lngInput.value = lng.toFixed(6);
+  });
+
+  // ค้นหาสถานที่ด้วย Nominatim
+  const searchInput = document.getElementById('map-search-input');
+  const searchBtn = document.getElementById('map-search-btn');
+
+  async function searchLocation() {
+    const query = searchInput.value.trim();
+    if (!query) return;
+
+    try {
+      const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q='
+                  + encodeURIComponent(query);
+      const res = await fetch(url, {
+        headers: { 'Accept-Language': 'th' }
+      });
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+
+        const latNum = parseFloat(lat);
+        const lonNum = parseFloat(lon);
+
+        if (marker) map.removeLayer(marker);
+        marker = L.marker([latNum, lonNum]).addTo(map)
+          .bindPopup(`ตำแหน่งที่เลือก:<br>${latNum.toFixed(6)}, ${lonNum.toFixed(6)}`)
+          .openPopup();
+
+        latInput.value = latNum.toFixed(6);
+        lngInput.value = lonNum.toFixed(6);
+        map.setView([latNum, lonNum], 16);
+      } else {
+        alert('ไม่พบสถานที่ที่ค้นหา');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('เกิดข้อผิดพลาดในการค้นหาสถานที่');
+    }
+  }
+
+  searchBtn.addEventListener('click', searchLocation);
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      searchLocation();
+    }
+  });
+
+  // ปุ่มลบหมุด
+  const clearBtn = document.getElementById('map-clear-btn');
+  clearBtn.addEventListener('click', function() {
+    if (marker) {
+      map.removeLayer(marker);
+      marker = null;
+    }
+    latInput.value = '';
+    lngInput.value = '';
+  });
+});
+</script>
+
+<style>
+body {
+  background-color: #f4f4f4 !important;
+  font-family: 'Kanit', sans-serif;
+}
+
+/* กล่องหลักให้กว้างเต็มจอมากขึ้น */
+.post-card {
+  background-color: #fff;
+  width: 100%;
+  max-width: 1300px;  /* 👈 ให้ใหญ่กว่าหน้า create นิดหน่อย */
+  border-radius: 22px;
+  padding: 1.5rem 0 1rem;
+}
+
+/* ส่วนหัว */
+.post-header {
+  border-bottom: 1px solid #eee;
+  padding: 0 2rem 0.75rem;
+}
+.btn-close-custom {
+  position: absolute;
+  right: 2rem;
+  top: 0;
+  background: none;
+  border: none;
+  color: #777;
+  font-size: 1.3rem;
+}
+.btn-close-custom:hover {
+  color: #000;
+}
+
+/* โปรไฟล์กลาง */
+.post-profile {
+  display: flex;
+  justify-content: center;
+}
+.profile-img {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ddd;
+}
+
+/* layout ซ้าย-ขวา */
+.post-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+.post-left,
+.post-right {
+  flex: 1 1 360px;
+}
+
+/* ช่องกรอกข้อมูล */
+.input-field {
+  width: 100%;
+  border: 1.5px solid #ccc;
+  border-radius: 10px;
+  padding: 0.6rem 0.9rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+.input-field:focus {
+  outline: none;
+  border-color: #000;
+  box-shadow: 0 0 0 1px #000;
+}
+
+/* แผนที่ */
+.map-box {
+  width: 100%;
+  height: 330px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  overflow: hidden;
+}
+
+/* icon upload */
+.icon-group i {
+  font-size: 1.6rem;
+  color: #555;
+  cursor: pointer;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.icon-group i:hover {
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* checkbox label */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+}
+
+/* footer ปุ่มล่าง */
+.post-footer {
+  border-top: 1px solid #eee;
+  padding-top: 1rem;
+}
+
+/* ปุ่มยกเลิก / บันทึก */
+.btn-cancel,
+.btn-save {
+  border-radius: 999px;
+  padding: 0.55rem 1.5rem;
+  font-weight: 600;
+  border: none;
+  font-size: 0.95rem;
+}
+
+/* ยกเลิกแดง */
+.btn-cancel {
+  background-color: #dc3545;
+  color: #fff;
+}
+.btn-cancel:hover {
+  background-color: #c82333;
+}
+
+/* บันทึกเขียว */
+.btn-save {
+  background-color: #28a745;
+  color: #fff;
+}
+.btn-save:hover {
+  background-color: #218838;
+}
+
+/* แผนที่: ช่องค้นหา */
+.map-search .form-control {
+  font-size: 0.9rem;
+}
+
+/* responsive เล็ก */
+@media (max-width: 768px) {
+  .post-card {
+    border-radius: 0;
+  }
+  .post-header {
+    padding: 0 1rem 0.75rem;
+  }
+  .btn-close-custom {
+    right: 1rem;
+  }
+}
+</style>
 {% endblock %}

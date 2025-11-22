@@ -37,11 +37,13 @@
 #             'description': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
 #         }
 
+# post/forms.py
+
 from django import forms
 from .models import Post
 
 class PostForm(forms.ModelForm):
-    # ใช้ widget ที่ให้เลือก "วันที่และเวลา" สำหรับฟิลด์ event_date
+    # widget วันที่/เวลา
     event_date = forms.DateTimeField(
         widget=forms.DateTimeInput(attrs={
             'type': 'datetime-local',
@@ -53,16 +55,19 @@ class PostForm(forms.ModelForm):
     class Meta:
         model = Post
         fields = [
-            'title', 
-            'description', 
-            'location', 
-            'event_date', 
+            'title',
+            'location',
+            'event_date',
+            'fee',              # ✅ ค่าใช้จ่าย
+            'description',
             'slots_available',
-            'image', 
-            'schedule', 
-            'map_lat', 
+            'allow_register',   # ✅ เปิด/ปิดให้สมัคร
+            'category',
+            'image',
+            'schedule',
+            'map_lat',
             'map_lng',
-            'category'
+            'create_group',     # ✅ เลือกสร้างกลุ่ม
         ]
 
         widgets = {
@@ -70,18 +75,30 @@ class PostForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'ชื่อกิจกรรม'
             }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'รายละเอียดกิจกรรม'
-            }),
             'location': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'สถานที่จัดกิจกรรม'
             }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'คำอธิบาย/รายละเอียดกิจกรรม'
+            }),
+            'fee': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 0,
+                'placeholder': 'ค่าใช้จ่าย (บาท) หากไม่มีเว้นว่างไว้'
+            }),
             'slots_available': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 1
+                'min': 1,
+                'placeholder': 'จำนวนคนที่รับสมัคร'
+            }),
+            'allow_register': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
+            }),
+            'category': forms.Select(attrs={
+                'class': 'form-select'
             }),
             'image': forms.ClearableFileInput(attrs={
                 'class': 'form-control'
@@ -91,7 +108,7 @@ class PostForm(forms.ModelForm):
             }),
             'map_lat': forms.HiddenInput(),
             'map_lng': forms.HiddenInput(),
-            'category': forms.Select(attrs={
-                'class': 'form-select'
+            'create_group': forms.CheckboxInput(attrs={
+                'class': 'form-check-input',
             }),
         }

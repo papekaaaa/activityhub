@@ -44,6 +44,7 @@ urlpatterns = [
     path('approver/', include('approver.urls')),
     path('post/', include(('post.urls', 'post'), namespace='post')),
     path('user/', include('users.urls')),
+    path('activity/', include('activity_register.urls', namespace='activity_register')),
 ]
 
 if settings.DEBUG:

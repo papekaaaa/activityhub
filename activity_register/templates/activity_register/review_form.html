@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <a href="{% url 'activity_register:joined_activities' %}"
+     class="text-decoration-none text-dark d-inline-flex align-items-center mb-3">
+    <i class="fa-solid fa-arrow-left me-2"></i> กลับรายการกิจกรรมที่เคยเข้าร่วม
+  </a>
+
+  <h4 class="fw-semibold mb-3">{{ post.title }}</h4>
+
+  <div class="row">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="fw-semibold mb-3">
+            {% if is_edit %}แก้ไขรีวิว{% else %}เขียนรีวิว{% endif %}
+          </h5>
+
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            {{ form.rating }} {# hidden input #}
+
+            <div class="mb-3">
+              <label class="form-label">ให้คะแนน</label>
+              <div id="star-box" class="fs-3">
+                {% for i in "12345" %}
+                  <i class="fa-regular fa-star text-warning star-icon"
+                     data-value="{{ forloop.counter }}"></i>
+                {% endfor %}
+              </div>
+              <small class="text-muted">แตะที่ดาวเพื่อเลือก 1–5 ดาว</small>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">ความคิดเห็น</label>
+              {{ form.comment }}
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">เพิ่มรูปภาพ (ไม่บังคับ)</label>
+              <div class="mb-2">
+                {{ form.image1.label_tag }} {{ form.image1 }}
+              </div>
+              <div class="mb-2">
+                {{ form.image2.label_tag }} {{ form.image2 }}
+              </div>
+
+              {% if form.instance.image1 or form.instance.image2 %}
+                <div class="mt-2 d-flex gap-2">
+                  {% if form.instance.image1 %}
+                    <img src="{{ form.instance.image1.url }}" alt="" class="img-thumbnail" style="width: 90px; height: 90px; object-fit: cover;">
+                  {% endif %}
+                  {% if form.instance.image2 %}
+                    <img src="{{ form.instance.image2.url }}" alt="" class="img-thumbnail" style="width: 90px; height: 90px; object-fit: cover;">
+                  {% endif %}
+                </div>
+              {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-success">
+              {% if is_edit %}บันทึกการแก้ไข{% else %}ส่งรีวิว{% endif %}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const hiddenInput = document.getElementById('id_rating');
+  const stars = document.querySelectorAll('#star-box .star-icon');
+
+  function setStars(val) {
+    stars.forEach(star => {
+      const v = parseInt(star.dataset.value);
+      if (v <= val) {
+        star.classList.remove('fa-regular');
+        star.classList.add('fa-solid');
+      } else {
+        star.classList.add('fa-regular');
+        star.classList.remove('fa-solid');
+      }
+    });
+  }
+
+  // ค่าเดิมจาก DB
+  const initial = parseInt(hiddenInput.value || '0');
+  if (initial) {
+    setStars(initial);
+  }
+
+  stars.forEach(star => {
+    star.addEventListener('click', () => {
+      const val = parseInt(star.dataset.value);
+      hiddenInput.value = val;
+      setStars(val);
+    });
+  });
+});
+</script>
+{% endblock %}

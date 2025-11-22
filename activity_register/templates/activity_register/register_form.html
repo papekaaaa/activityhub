@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="d-flex justify-content-center mt-4 mb-5">
+  <div class="register-card">
+
+    <!-- หัวเรื่อง -->
+    <div class="register-header d-flex align-items-center mb-3">
+      <button type="button" class="btn btn-link text-dark p-0 me-3"
+              onclick="window.history.back()">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <h4 class="mb-0 fw-semibold">
+        {% if edit_mode %}
+          แก้ไขข้อมูลสำหรับสมัครกิจกรรม
+        {% else %}
+          การลงทะเบียนสมัครเข้าร่วมกิจกรรม
+        {% endif %}
+      </h4>
+    </div>
+
+    {% if post %}
+      <p class="text-muted mb-4">
+        กิจกรรม: <strong>{{ post.title }}</strong>
+      </p>
+    {% elif edit_mode %}
+      <p class="text-muted mb-4">
+        ข้อมูลนี้จะถูกใช้เป็นค่าเริ่มต้นเมื่อคุณสมัครกิจกรรมต่าง ๆ
+      </p>
+    {% endif %}
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <!-- แถว 1: คำนำหน้า + ชื่อ + นามสกุล -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-2">
+          <label class="form-label">คำนำหน้า</label>
+          {{ form.prefix }}
+          {% for err in form.prefix.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">ชื่อ</label>
+          {{ form.first_name }}
+          {% for err in form.first_name.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">นามสกุล</label>
+          {{ form.last_name }}
+          {% for err in form.last_name.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- แถว 2: วันเกิด + เพศ -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">วัน/เดือน/ปีเกิด</label>
+          {{ form.birth_date }}
+          {% for err in form.birth_date.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">เพศ</label>
+          {{ form.gender }}
+          {% for err in form.gender.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- แถว 3: ที่อยู่ + เบอร์โทร -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">ที่อยู่ปัจจุบัน</label>
+          {{ form.current_address }}
+          {% for err in form.current_address.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">เบอร์โทรศัพท์</label>
+          {{ form.phone }}
+          {% for err in form.phone.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- แถว 4: อีเมล + ช่องทางติดต่อ -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">อีเมล</label>
+          {{ form.email }}
+          {% for err in form.email.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">ช่องทางติดต่ออื่น (Line, Facebook เป็นต้น)</label>
+          {{ form.contact_channel }}
+          {% for err in form.contact_channel.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- แถว 5: โรคประจำตัว + อาหารที่แพ้ -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">โรคประจำตัว</label>
+          {{ form.chronic_disease }}
+          {% for err in form.chronic_disease.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">อาหารที่แพ้</label>
+          {{ form.food_allergy }}
+          {% for err in form.food_allergy.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- แถว 6: ยาที่แพ้ + ความสามารถภาคสนาม -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">ยาที่แพ้</label>
+          {{ form.drug_allergy }}
+          {% for err in form.drug_allergy.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">ความสามารถในการเข้าร่วมกิจกรรมภาคสนาม (Y/N)</label>
+          {{ form.field_ability }}
+          {% for err in form.field_ability.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Checkbox 2 ข้อ -->
+      <div class="mt-4 mb-3">
+        <div class="form-check mb-2">
+          {{ form.consent_personal_data }}
+          <label class="form-check-label ms-2">
+            ยินยอมให้ใช้ข้อมูลส่วนตัวเพื่อวัตถุประสงค์ในกิจกรรม
+          </label>
+          {% for err in form.consent_personal_data.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="form-check">
+          {{ form.consent_terms }}
+          <label class="form-check-label ms-2">
+            ยอมรับเงื่อนไขและข้อกำหนดของกิจกรรม
+          </label>
+          {% for err in form.consent_terms.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- ปุ่มยืนยัน -->
+      <div class="text-center mt-4">
+        <button type="submit" class="btn btn-register px-5">
+          {% if edit_mode %}
+            บันทึกข้อมูล
+          {% else %}
+            ยืนยันการสมัคร
+          {% endif %}
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+
+<!-- Popup สมัครเสร็จสิ้น (ใช้เฉพาะกรณีสมัครกิจกรรมจริง) -->
+<div id="successModal"
+     class="success-overlay {% if not success %}d-none{% endif %}">
+  <div class="success-dialog">
+    <button type="button" class="btn-close custom-close"
+            aria-label="Close"></button>
+    <h5 class="fw-bold mb-3 text-center">สมัครเสร็จสิ้น</h5>
+    <div class="text-center mb-3">
+      <button type="button" class="btn btn-join-chat px-4">
+        เข้าร่วมแชทกลุ่ม
+      </button>
+    </div>
+    <p class="text-center text-muted mb-0">
+      (ฟีเจอร์แชทจะถูกเปิดใช้ในภายหลัง)
+    </p>
+  </div>
+</div>
+
+<style>
+  body {
+    background-color: #f0f4ff !important;
+  }
+
+  .register-card {
+    background-color: #f4f7ff;
+    border-radius: 30px;
+    padding: 2.5rem 3rem;
+    max-width: 900px;
+    width: 100%;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  }
+
+  .register-header h4 {
+    font-size: 1.3rem;
+  }
+
+  .btn-register {
+    background-color: #60c58b;
+    border-radius: 999px;
+    color: #fff;
+    font-weight: 600;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+
+  .btn-register:hover {
+    background-color: #4caf73;
+    color: #fff;
+  }
+
+  /* popup */
+  .success-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+
+  .success-dialog {
+    background-color: #f8fbff;
+    border-radius: 25px;
+    padding: 2rem 2.5rem;
+    min-width: 320px;
+    max-width: 420px;
+    position: relative;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  }
+
+  .custom-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+
+  .btn-join-chat {
+    background-color: #bff5c9;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .btn-join-chat:hover {
+    background-color: #a4e6b1;
+  }
+
+  @media (max-width: 768px) {
+    .register-card {
+      padding: 1.5rem 1.5rem;
+      border-radius: 20px;
+    }
+  }
+</style>
+
+{% if success %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const overlay = document.getElementById('successModal');
+  const closeBtn = overlay.querySelector('.custom-close');
+
+  function close() {
+    overlay.classList.add('d-none');
+  }
+
+  closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) {
+      close();
+    }
+  });
+});
+</script>
+{% endif %}
+{% endblock %}
