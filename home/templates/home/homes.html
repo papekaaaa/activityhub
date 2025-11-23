@@ -9,13 +9,13 @@
       <div class="list-group shadow-sm">
         {% for category in categories %}
         <a
-          href="?category={{ category }}"
+          href="?category={{ category }}{% if search_query %}&search={{ search_query }}{% endif %}"
           class="list-group-item list-group-item-action {% if category == selected_category %}active{% endif %}"
         >
           {{ category }}
         </a>
         {% endfor %}
-        {% if selected_category %}
+        {% if selected_category or search_query %}
         <a
           href="{% url 'home:home' %}"
           class="list-group-item list-group-item-action text-danger fw-semibold"
@@ -39,7 +39,11 @@
                 name="search"
                 class="form-control border-0 bg-transparent flex-grow-1"
                 placeholder="ค้นหากิจกรรม"
+                value="{{ search_query|default_if_none:'' }}"
               />
+              {% if selected_category %}
+                <input type="hidden" name="category" value="{{ selected_category }}">
+              {% endif %}
               <button class="btn border-0" type="submit">
                 <i class="fa-solid fa-magnifying-glass"></i>
               </button>

@@ -45,6 +45,9 @@ urlpatterns = [
     path('post/', include(('post.urls', 'post'), namespace='post')),
     path('user/', include('users.urls')),
     path('activity/', include('activity_register.urls', namespace='activity_register')),
+    path('chat/', include(('chat.urls', 'chat'), namespace='chat')),
+    
+
 ]
 
 if settings.DEBUG:

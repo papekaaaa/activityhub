@@ -32,13 +32,18 @@
   </button>
 </div>
 
-<!-- 🔹 ปุ่มเมนู (เหมือนเดิม) -->
+<!-- 🔹 ปุ่มเมนู -->
 <div class="container-fluid mb-5 px-5">
   <div class="row text-center g-4 justify-content-center">
     <div class="col-12 col-md-3">
       <div class="dropdown h-100">
-        <button class="menu-box shadow-sm d-block py-4 rounded-4 w-100 dropdown-toggle"
-                type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        <button
+          class="menu-box shadow-sm d-block py-4 rounded-4 w-100 dropdown-toggle fw-semibold"
+          type="button"
+          id="categoryDropdown"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+        >
           ประเภทกิจกรรม
         </button>
         <ul class="dropdown-menu w-100 text-center" aria-labelledby="categoryDropdown">
@@ -76,10 +81,10 @@
   </div>
 </div>
 
-<!-- 🔹 หมวดหมู่กิจกรรม (แก้เฉพาะส่วนนี้) -->
+<!-- 🔹 หมวดหมู่กิจกรรม -->
 <div class="container-fluid px-5">
   <section class="category-section text-center mt-5 mb-5">
-    <h3 class="fw-semibold mb-5 fs-2">หมวดหมู่กิจกรรม</h3>
+    <h3 class="fw-semibold mb-5 fs-2">ประเภทกิจกรรม</h3>
 
     <div class="category-grid">
       <!-- แถวที่ 1 -->
@@ -178,10 +183,10 @@
 @media (min-width: 992px) {
   .category-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    max-width: 1400px;   /* กระจายเต็มจอมากขึ้น */
+    max-width: 1400px;
     margin: 0 auto;
-    row-gap: 5.5rem;     /* ระยะห่างแนวตั้งมากขึ้น */
-    column-gap: 6.5rem;  /* ระยะห่างแนวนอนมากขึ้น */
+    row-gap: 5.5rem;
+    column-gap: 6.5rem;
   }
 
   /* ใบสุดท้ายอยู่คอลัมน์กลาง (แถว 4 มีการ์ดเดียวตรงกลาง) */
@@ -189,9 +194,6 @@
     grid-column: 2 / 3;
   }
 }
-
-
-
 
 /* card ใบเดียวเต็มรูป */
 .category-card {
@@ -202,14 +204,14 @@
   background: #fff;
   max-width: 360px;
   margin: 0 auto;
-  aspect-ratio: 4 / 3; /* สัดส่วนกรอบ */
+  aspect-ratio: 4 / 3;
   transition: transform .2s ease, box-shadow .2s ease;
 }
 
 .category-card img {
   width: 100%;
   height: 100%;
-  object-fit: cover;   /* ให้รูปเต็มกรอบ */
+  object-fit: cover;
   display: block;
 }
 
@@ -224,6 +226,5 @@
   .menu-box { font-size: 1.1rem; padding: 1rem 0; }
 }
 </style>
-
 
 {% endblock %}

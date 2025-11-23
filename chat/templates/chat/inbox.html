@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f5f6f7 !important;
+  }
+
+  .inbox-wrapper {
+    max-width: 960px;
+    margin: 1.5rem auto 2rem;
+  }
+
+  .inbox-card {
+    background-color: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    padding: 1.25rem 1.5rem;
+  }
+
+  .chat-item {
+    border-radius: 14px;
+    padding: 0.7rem 0.75rem;
+    border: none;
+  }
+
+  .chat-item:hover {
+    background-color: #f3f4ff;
+  }
+
+  .chat-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .chat-title {
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .chat-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .chat-last {
+    font-size: 0.9rem;
+  }
+
+  .chat-time {
+    font-size: 0.75rem;
+    color: #9ca3af;
+  }
+</style>
+
+<div class="container-fluid px-3">
+  <div class="inbox-wrapper">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="mb-0 fw-semibold">กล่องข้อความ</h4>
+    </div>
+
+    <div class="inbox-card">
+      {% if rooms %}
+        <div class="list-group list-group-flush">
+          {% for r in rooms %}
+            <a href="{{ r.link_url }}"
+               class="list-group-item list-group-item-action chat-item d-flex align-items-center gap-3">
+              {% if r.avatar_url %}
+                <img src="{{ r.avatar_url }}" class="chat-avatar" alt="{{ r.title }}">
+              {% else %}
+                <img src="{% static 'images/default_profile.png' %}" class="chat-avatar" alt="">
+              {% endif %}
+
+              <div class="flex-grow-1">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <div class="chat-title mb-0 text-truncate">
+                      {{ r.title }}
+                    </div>
+                    <div class="chat-subtitle text-muted">
+                      {% if r.is_group %}
+                        🧑‍🤝‍🧑 กลุ่มกิจกรรม
+                      {% else %}
+                        💬 ข้อความส่วนตัว
+                      {% endif %}
+                    </div>
+                  </div>
+                  {% if r.last_time %}
+                    <div class="chat-time ms-2">
+                      {{ r.last_time|date:"d/m H:i" }}
+                    </div>
+                  {% endif %}
+                </div>
+                {% if r.last_message %}
+                  <div class="chat-last text-muted text-truncate mt-1">
+                    {{ r.last_message }}
+                  </div>
+                {% endif %}
+              </div>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="text-muted text-center mb-0">
+          ยังไม่มีห้องแชท เริ่มคุยกับใครสักคนจากหน้ากิจกรรมหรือหน้าโปรไฟล์ได้เลย
+        </p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

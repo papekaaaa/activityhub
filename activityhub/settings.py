@@ -43,7 +43,8 @@ INSTALLED_APPS = [
     'approver',
     'post.apps.PostConfig',
     'activity_register',
-    
+    'channels',
+    'chat',   
     
 ]
 
@@ -129,3 +130,14 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'users.User'
 LOGIN_URL = 'login'
+
+ASGI_APPLICATION = 'activityhub.asgi.application'
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],  # ต้องมี Redis รันอยู่
+        },
+    },
+}

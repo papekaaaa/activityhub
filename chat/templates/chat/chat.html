@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  body {
+    background-color: #f5f6f7 !important;
+  }
+
+  .chat-wrapper {
+    max-width: 960px;
+    margin: 0 auto;
+    height: calc(100vh - 70px);
+    background-color: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .chat-header {
+    padding: 0.8rem 1.2rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .chat-header-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .chat-messages {
+    padding: 1rem;
+    overflow-y: auto;
+    background-color: #f3f6fb;
+  }
+
+  .chat-row {
+    display: flex;
+    margin-bottom: 0.6rem;
+  }
+
+  .chat-row.other {
+    justify-content: flex-start;
+  }
+
+  .chat-row.me {
+    justify-content: flex-end;
+  }
+
+  .chat-bubble-wrap {
+    max-width: 70%;
+    display: flex;
+    gap: 0.4rem;
+  }
+
+  .chat-bubble {
+    padding: 0.5rem 0.8rem;
+    border-radius: 18px;
+    font-size: 0.98rem;
+    line-height: 1.4;
+    background-color: #e3f1ff;
+    color: #000;
+  }
+
+  .chat-row.me .chat-bubble {
+    background-color: #dbeafe;
+  }
+
+  .chat-meta {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.15rem;
+  }
+
+  .chat-input-area {
+    padding: 0.7rem 1rem;
+    background-color: #ffffff;
+  }
+
+  .chat-input-box {
+    background-color: #f3f4f6;
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .chat-input-box input {
+    border: none;
+    background: transparent;
+    box-shadow: none !important;
+  }
+
+  .chat-input-box input:focus {
+    outline: none;
+  }
+
+  .send-btn-icon {
+    font-size: 1.4rem;
+  }
+
+  @media (max-width: 768px) {
+    .chat-wrapper {
+      border-radius: 0;
+      height: calc(100vh - 56px);
+      box-shadow: none;
+      margin-top: 0;
+      margin-bottom: 0;
+    }
+  }
+</style>
+
+<div class="container-fluid px-0">
+  <div class="chat-wrapper">
+
+    <!-- HEADER -->
+    <div class="chat-header d-flex align-items-center">
+      <button
+        type="button"
+        class="btn btn-link text-dark p-0 me-2"
+        onclick="window.history.back()">
+        <i class="fa-solid fa-arrow-left fa-lg"></i>
+      </button>
+
+      {% if is_group and post %}
+        {% if post.image %}
+          <img src="{{ post.image.url }}" class="chat-header-avatar me-2" alt="{{ post.title }}">
+        {% else %}
+          <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
+        {% endif %}
+        <div>
+          <div class="fw-semibold">
+            {{ post.title }}
+          </div>
+          <div class="small text-muted">
+            แชทกลุ่มกิจกรรม
+          </div>
+        </div>
+      {% else %}
+        {% if other_user.profile.profile_picture %}
+          <img src="{{ other_user.profile.profile_picture.url }}" class="chat-header-avatar me-2" alt="{{ other_user.get_full_name }}">
+        {% else %}
+          <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
+        {% endif %}
+        <div>
+          <div class="fw-semibold">
+            {{ other_user.get_full_name|default:other_user.username }}
+          </div>
+          <div class="small text-muted">
+            ข้อความส่วนตัว
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- MESSAGE LIST -->
+    <div id="chatMessages" class="chat-messages flex-grow-1">
+      {% for msg in messages %}
+        <div class="chat-row {% if msg.sender == request.user %}me{% else %}other{% endif %}">
+          <div class="chat-bubble-wrap">
+            {% if msg.sender != request.user %}
+              {% if msg.sender.profile.profile_picture %}
+                <img src="{{ msg.sender.profile.profile_picture.url }}"
+                     class="chat-header-avatar"
+                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
+                     alt="{{ msg.sender.get_full_name }}">
+              {% else %}
+                <img src="{% static 'images/default_profile.png' %}"
+                     class="chat-header-avatar"
+                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
+                     alt="">
+              {% endif %}
+            {% endif %}
+
+            <div>
+              <div class="chat-bubble">
+                {{ msg.content|linebreaksbr }}
+              </div>
+              <div class="chat-meta">
+                {{ msg.sender.get_full_name|default:msg.sender.username }} ·
+                {{ msg.created_at|date:"d/m/Y H:i" }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <p class="text-muted small text-center mt-3">
+          ยังไม่มีข้อความ เริ่มคุยก่อนคนแรกได้เลย 🙂
+        </p>
+      {% endfor %}
+    </div>
+
+    <!-- INPUT -->
+    <div class="chat-input-area">
+      <form id="chatForm" class="chat-input-box">
+        <input
+          id="chatMessageInput"
+          type="text"
+          class="form-control"
+          placeholder="Aa"
+          autocomplete="off"
+        />
+        <button type="submit" class="btn btn-link p-0 send-btn-icon">
+          <i class="fa-solid fa-paper-plane"></i>
+        </button>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const roomId = {{ room.id }};
+  const currentUserId = {{ request.user.id }};
+  const messagesEl = document.getElementById('chatMessages');
+  const formEl = document.getElementById('chatForm');
+  const inputEl = document.getElementById('chatMessageInput');
+
+  // เลื่อนลงล่างสุดตอนโหลด
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const socketUrl = `${scheme}://${window.location.host}/ws/chat/${roomId}/`;
+  const chatSocket = new WebSocket(socketUrl);
+
+  chatSocket.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    appendMessage(data);
+  };
+
+  chatSocket.onclose = function(e) {
+    console.error('Chat socket closed unexpectedly');
+  };
+
+  function escapeHtml(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function appendMessage(data) {
+    const isMe = data.sender_id === currentUserId;
+    const row = document.createElement('div');
+    row.className = 'chat-row ' + (isMe ? 'me' : 'other');
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-bubble-wrap';
+
+    const bubbleContainer = document.createElement('div');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble';
+    bubble.innerHTML = escapeHtml(data.message);
+
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+    meta.textContent = `${data.sender_name} · ${data.created_at}`;
+
+    bubbleContainer.appendChild(bubble);
+    bubbleContainer.appendChild(meta);
+
+    wrapper.appendChild(bubbleContainer);
+    row.appendChild(wrapper);
+    messagesEl.appendChild(row);
+
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  formEl.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const text = inputEl.value.trim();
+    if (!text || chatSocket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+    chatSocket.send(JSON.stringify({ message: text }));
+    inputEl.value = '';
+  });
+});
+</script>
+{% endblock %}

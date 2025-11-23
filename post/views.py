@@ -1,109 +1,3 @@
-
-# from django.shortcuts import render, redirect, get_object_or_404
-# from django.contrib.auth.decorators import login_required
-# from django.contrib import messages
-# from django.http import HttpResponseForbidden # Import เพิ่ม
-# from .models import Post # Import เพิ่ม
-# from .forms import PostForm
-
-# @login_required # บังคับให้ต้องล็อกอินก่อนเสมอ
-# def create_post(request):
-#     if request.method == 'POST':
-#         # รับข้อมูลจากฟอร์มที่ส่งมา
-#         form = PostForm(request.POST, request.FILES)
-#         if form.is_valid():
-#             # ยังไม่บันทึกลง DB จริง เพื่อกำหนดค่า organizer
-#             post = form.save(commit=False) 
-#             # กำหนดให้ organizer คือ user ที่ล็อกอินอยู่
-#             post.organizer = request.user 
-#             post.save() # บันทึกข้อมูลลงฐานข้อมูล
-            
-#             messages.success(request, 'สร้างกิจกรรมของคุณเรียบร้อยแล้ว และได้ส่งไปเพื่อรอการอนุมัติ')
-#             return redirect('profile') # กลับไปที่หน้าโปรไฟล์
-#     else:
-#         # ถ้าเป็น GET request ให้แสดงฟอร์มว่างๆ
-#         form = PostForm()
-
-#     context = {
-#         'form': form,
-#         'title': 'สร้างกิจกรรมใหม่' # ส่ง title ไปให้ template
-#     }
-#     # เราจะใช้ template ชื่อ post_form.html
-#     return render(request, 'post/post_form.html', context)
-
-# @login_required
-# def post_update_view(request, post_id):
-#     post = get_object_or_404(Post, id=post_id)
-#     # ตรวจสอบสิทธิ์: เฉพาะเจ้าของโพสต์เท่านั้นที่แก้ไขได้
-#     if post.organizer != request.user:
-#         return HttpResponseForbidden("คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้")
-
-#     if request.method == 'POST':
-#         form = PostForm(request.POST, request.FILES, instance=post)
-#         if form.is_valid():
-#             form.save()
-#             messages.success(request, 'กิจกรรมของคุณได้รับการอัปเดตแล้ว!')
-#             return redirect('post_detail', post_id=post.id)
-#     else:
-#         form = PostForm(instance=post)
-
-#     context = {
-#         'form': form,
-#         'title': 'แก้ไขกิจกรรม' # ส่ง title ไปให้ template
-#     }
-#     return render(request, 'post/post_form.html', context)
-
-
-# @login_required
-# def post_delete_view(request, post_id):
-#     post = get_object_or_404(Post, id=post_id)
-#     # ตรวจสอบสิทธิ์: เฉพาะเจ้าของโพสต์เท่านั้นที่ลบได้
-#     if post.organizer != request.user:
-#         return HttpResponseForbidden("คุณไม่มีสิทธิ์ลบกิจกรรมนี้")
-
-#     if request.method == 'POST':
-#         post.delete()
-#         messages.success(request, 'กิจกรรมของคุณถูกลบเรียบร้อยแล้ว')
-#         return redirect('profile') # กลับไปหน้าโปรไฟล์
-
-#     context = {
-#         'post': post
-#     }
-#     return render(request, 'post/post_confirm_delete.html', context)
-
-# from django.shortcuts import render, redirect
-# from django.contrib.auth.decorators import login_required
-# from .forms import PostForm
-
-# @login_required
-# def create_post(request):
-#     if request.method == 'POST':
-#         form = PostForm(request.POST, request.FILES)
-#         if form.is_valid():
-#             post = form.save(commit=False)
-#             post.created_by = request.user
-#             post.save()
-#             return redirect('home')  # เปลี่ยนตามชื่อหน้า home ของคุณ
-#     else:
-#         form = PostForm()
-#     return render(request, 'post/create_post.html', {'form': form})
-
-
-# def create_post(request):
-#     if request.method == 'POST':
-#         form = PostForm(request.POST, request.FILES)
-#         if form.is_valid():
-#             post = form.save(commit=False)
-#             post.organizer = request.user
-#             post.save()
-#             messages.success(request, 'สร้างกิจกรรมของคุณเรียบร้อยแล้ว และได้ส่งไปเพื่อรอการอนุมัติ')
-#             return redirect('profile')
-#     else:
-#         form = PostForm()
-
-#     context = {'form': form, 'title': 'สร้างกิจกรรมใหม่'}
-#     return render(request, 'post/post_form.html', context)
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -114,6 +8,7 @@ from django.db.models import Avg
 from .models import Post
 from .forms import PostForm
 from activity_register.models import ActivityReview
+from chat.models import ChatRoom, ChatMembership
 import json
 
 
@@ -127,9 +22,23 @@ def create_post(request):
         if form.is_valid():
             post = form.save(commit=False)
             post.organizer = request.user
-            post.map_lat = request.POST.get('map_lat')
-            post.map_lng = request.POST.get('map_lng')
+            post.map_lat = request.POST.get('map_lat') or None
+            post.map_lng = request.POST.get('map_lng') or None
             post.save()
+
+            # สร้างห้องแชทของกิจกรรม + ดึง organizer เข้าห้อง
+            room = ChatRoom.objects.create(
+                room_type='GROUP',
+                name=post.title,
+                post=post,
+                created_by=request.user,
+            )
+            ChatMembership.objects.create(
+                room=room,
+                user=request.user,
+                is_admin=True,
+            )
+
             messages.success(request, 'สร้างกิจกรรมสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ')
             return redirect('home:home')
     else:
@@ -139,12 +48,9 @@ def create_post(request):
     profile_pic_url = None
     user = request.user
 
-    # กรณีมีโมเดล Profile แยก เช่น user.profile.profile_picture
     if hasattr(user, "profile") and getattr(user.profile, "profile_picture", None):
         if user.profile.profile_picture:
             profile_pic_url = user.profile.profile_picture.url
-
-    # ถ้าเก็บรูปไว้บน User โดยตรง เช่น user.profile_picture
     elif hasattr(user, "profile_picture") and user.profile_picture:
         profile_pic_url = user.profile_picture.url
 
@@ -169,11 +75,8 @@ def post_update_view(request, post_id):
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
             post = form.save(commit=False)
-
-            # อัปเดตพิกัดจากฟอร์มเหมือนตอนสร้างโพสต์
             post.map_lat = request.POST.get('map_lat') or None
             post.map_lng = request.POST.get('map_lng') or None
-
             post.save()
             messages.success(request, 'กิจกรรมของคุณได้รับการอัปเดตแล้ว!')
             return redirect('post:post_detail', post_id=post.id)
@@ -214,7 +117,6 @@ def post_delete_view(request, post_id):
 def post_detail_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
-    # ดึงรีวิวทั้งหมดของโพสต์นี้
     reviews = (
         post.activity_reviews
         .select_related('user')
@@ -290,28 +192,29 @@ def saved_posts_view(request):
 
 
 # ------------------------------
-# ฟังก์ชัน: แสดงทุกกิจกรรมบนแผนที่
+# ฟังก์ชัน: แผนที่กิจกรรม
 # ------------------------------
 @login_required
 def map_overview(request):
-    """
-    แผนที่กิจกรรม (สำหรับผู้ใช้ที่ล็อกอิน)
-    - แสดงหมุดทุกกิจกรรมที่มีพิกัด
-    - ใช้ geolocation แสดงตำแหน่งปัจจุบันของผู้ใช้
-    """
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
-        latitude__isnull=False,
-        longitude__isnull=False,
+        map_lat__isnull=False,
+        map_lng__isnull=False,
     )
 
     events = []
     for p in posts:
+        try:
+            lat = float(p.map_lat)
+            lng = float(p.map_lng)
+        except (TypeError, ValueError):
+            continue
+
         events.append({
             "id": p.id,
             "title": p.title,
-            "lat": float(p.latitude),
-            "lng": float(p.longitude),
+            "lat": lat,
+            "lng": lng,
             "location": p.location or "",
             "date": p.event_date.strftime("%d %b %Y") if p.event_date else "",
         })

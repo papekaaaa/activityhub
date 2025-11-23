@@ -70,6 +70,12 @@
         color: #007bff;
     }
 
+    .navbar-icon-link {
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+    }
+
     /* ส่วนโปรไฟล์ */
     .navbar-user {
         display: flex;
@@ -110,7 +116,6 @@
         user-select: none;
     }
 
-    /* ✅ เข้าสู่ระบบ: พื้นขาว ขอบดำ */
     .btn-login {
         background-color: #ffffff;
         color: #000000;
@@ -122,21 +127,18 @@
         color: #000000;
     }
 
-    /* ✅ สมัครสมาชิก: พื้นฟ้าอ่อน + โทนฟ้าเข้มเมื่อ hover/active */
     .btn-register {
         background-color: #e6ebff;
         color: #000000;
         border-color: #e6ebff;
     }
 
-    /* 🟦 Hover: ฟ้าอ่อนเข้มขึ้น */
     .btn-register:hover {
         background-color: #cddaff;
         border-color: #cddaff;
         color: #000000;
     }
 
-    /* 🎯 Active/Focus: ฟ้าเข้ม + ตัวอักษรขาว */
     .btn-register:active,
     .btn-register:focus {
         background-color: #0056b3;
@@ -163,10 +165,8 @@
     }
 </style>
 
-<!-- Navbar -->
 <nav class="navbar-full" id="navbarContainer">
     <div class="navbar-left">
-        <!-- ✅ คลิกโลโก้หรือชื่อกลับหน้า Home -->
         {% if user.is_authenticated %}
             <a href="{% url 'home:home' %}" class="d-flex align-items-center text-decoration-none">
         {% else %}
@@ -175,17 +175,26 @@
             <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo" class="navbar-logo">
             <div class="navbar-brand">Activity Hub</div>
         </a>
-
     </div>
 
     <div class="navbar-right">
         {% if user.is_authenticated %}
+            <!-- แจ้งเตือน (ยังเป็นไอคอนเฉย ๆ) -->
             <i class="fa-regular fa-bell navbar-icon" title="แจ้งเตือน"></i>
-            <i class="fa-regular fa-comment navbar-icon" title="แชท"></i>
+
+            <!-- ✅ แชท: ลิงก์ไปหน้า inbox -->
+            <a href="{% url 'chat:inbox' %}" class="navbar-icon-link" title="แชท">
+                <i class="fa-regular fa-comment navbar-icon"></i>
+            </a>
 
             <div class="navbar-user">
-                <a href="{% url 'profile' %}" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.6rem;">
-                    <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
+                <a href="{% url 'profile' %}"
+                   style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.6rem;">
+                    {% if user.profile.profile_picture %}
+                        <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
+                    {% else %}
+                        <img src="{% static 'images/default_profile.png' %}" alt="Profile Picture" class="navbar-user-pic">
+                    {% endif %}
                     <div class="navbar-logout-section">
                         <span>{{ user.email|truncatechars:15 }}</span>
                     </div>
@@ -203,7 +212,6 @@
 </nav>
 
 <script>
-    // เพิ่มเงาเข้มเมื่อ scroll
     window.addEventListener('scroll', () => {
         const nav = document.getElementById('navbarContainer');
         if (window.scrollY > 10) {

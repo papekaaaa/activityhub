@@ -2,76 +2,91 @@
 {% load static %}
 
 {% block content %}
-<div class="container mt-4 mb-5">
-  <a href="{% url 'activity_register:joined_activities' %}"
-     class="text-decoration-none text-dark d-inline-flex align-items-center mb-3">
-    <i class="fa-solid fa-arrow-left me-2"></i> กลับรายการกิจกรรมที่เคยเข้าร่วม
-  </a>
-
-  <h4 class="fw-semibold mb-3">{{ post.title }}</h4>
-
-  <div class="row">
-    <div class="col-md-8 col-lg-6">
-      <div class="card shadow-sm">
-        <div class="card-body">
-          <h5 class="fw-semibold mb-3">
-            {% if is_edit %}แก้ไขรีวิว{% else %}เขียนรีวิว{% endif %}
-          </h5>
-
-          <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-
-            {{ form.rating }} {# hidden input #}
-
-            <div class="mb-3">
-              <label class="form-label">ให้คะแนน</label>
-              <div id="star-box" class="fs-3">
-                {% for i in "12345" %}
-                  <i class="fa-regular fa-star text-warning star-icon"
-                     data-value="{{ forloop.counter }}"></i>
-                {% endfor %}
-              </div>
-              <small class="text-muted">แตะที่ดาวเพื่อเลือก 1–5 ดาว</small>
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">ความคิดเห็น</label>
-              {{ form.comment }}
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label">เพิ่มรูปภาพ (ไม่บังคับ)</label>
-              <div class="mb-2">
-                {{ form.image1.label_tag }} {{ form.image1 }}
-              </div>
-              <div class="mb-2">
-                {{ form.image2.label_tag }} {{ form.image2 }}
-              </div>
-
-              {% if form.instance.image1 or form.instance.image2 %}
-                <div class="mt-2 d-flex gap-2">
-                  {% if form.instance.image1 %}
-                    <img src="{{ form.instance.image1.url }}" alt="" class="img-thumbnail" style="width: 90px; height: 90px; object-fit: cover;">
-                  {% endif %}
-                  {% if form.instance.image2 %}
-                    <img src="{{ form.instance.image2.url }}" alt="" class="img-thumbnail" style="width: 90px; height: 90px; object-fit: cover;">
-                  {% endif %}
-                </div>
-              {% endif %}
-            </div>
-
-            <button type="submit" class="btn btn-success">
-              {% if is_edit %}บันทึกการแก้ไข{% else %}ส่งรีวิว{% endif %}
-            </button>
-          </form>
-        </div>
+<div class="review-page-wrapper py-5">
+  <div class="container d-flex justify-content-center">
+    <div class="review-card shadow-lg">
+      <!-- แถวบน: ปุ่ม back + ชื่อกิจกรรม -->
+      <div class="d-flex align-items-center mb-4">
+        <button type="button"
+                class="btn btn-link text-dark p-0 me-3"
+                onclick="window.history.back()">
+          <i class="fa-solid fa-arrow-left fs-5"></i>
+        </button>
+        <h5 class="mb-0 fw-semibold text-truncate">
+          {{ post.title }}
+        </h5>
       </div>
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ form.rating }} {# hidden rating field #}
+
+        <!-- กล่องอัปโหลดรูปหลัก -->
+        <div class="upload-main text-center mb-4">
+          <div id="uploadBox" class="upload-box mx-auto">
+            <i class="fa-regular fa-image upload-icon"></i>
+            <div class="mt-2">เพิ่มรูปภาพ</div>
+            <small class="text-muted d-block">แตะเพื่อเลือกภาพ สูงสุด 2 รูป</small>
+          </div>
+
+          <!-- input จริง ซ่อนอยู่ -->
+          <div class="d-none">
+            {{ form.image1 }}
+            {{ form.image2 }}
+          </div>
+
+          <!-- ตัวอย่างรูปภาพ -->
+          <div id="previewContainer" class="preview-container mt-3">
+            {% if form.instance.image1 %}
+              <img src="{{ form.instance.image1.url }}"
+                   class="preview-img"
+                   data-slot="1"
+                   alt="image1">
+            {% endif %}
+            {% if form.instance.image2 %}
+              <img src="{{ form.instance.image2.url }}"
+                   class="preview-img"
+                   data-slot="2"
+                   alt="image2">
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- ช่องคอมเมนต์สไตล์แช็ต + ไอคอนส่ง -->
+        <div class="comment-wrapper mb-4 d-flex align-items-center">
+          <div class="flex-grow-1">
+            {{ form.comment }}
+          </div>
+          <div class="send-icon-wrapper ms-2">
+            <i class="fa-solid fa-location-arrow"></i>
+          </div>
+        </div>
+
+        <!-- ให้ดาว -->
+        <div class="mb-4 text-center">
+          <div id="star-box" class="star-row">
+            {% for i in "12345" %}
+              <i class="fa-regular fa-star text-warning star-icon"
+                 data-value="{{ forloop.counter }}"></i>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- ปุ่มส่ง -->
+        <div class="text-end">
+          <button type="submit" class="btn btn-success px-4">
+            {% if is_edit %}บันทึกการแก้ไข{% else %}ส่งรีวิว{% endif %}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  /* ---------- STAR RATING ---------- */
   const hiddenInput = document.getElementById('id_rating');
   const stars = document.querySelectorAll('#star-box .star-icon');
 
@@ -88,7 +103,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ค่าเดิมจาก DB
   const initial = parseInt(hiddenInput.value || '0');
   if (initial) {
     setStars(initial);
@@ -101,6 +115,150 @@ document.addEventListener('DOMContentLoaded', function () {
       setStars(val);
     });
   });
+
+  /* ---------- IMAGE PREVIEW (image1 + image2) ---------- */
+  const uploadBox = document.getElementById('uploadBox');
+  const previewContainer = document.getElementById('previewContainer');
+  const imgInput1 = document.getElementById('id_image1');
+  const imgInput2 = document.getElementById('id_image2');
+
+  function handlePreview(input, slot) {
+    if (!input) return;
+    input.addEventListener('change', function () {
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          let img = previewContainer.querySelector('img[data-slot="' + slot + '"]');
+          if (!img) {
+            img = document.createElement('img');
+            img.className = 'preview-img';
+            img.dataset.slot = String(slot);
+            previewContainer.appendChild(img);
+          }
+          img.src = e.target.result;
+
+          // คลิกรูปเพื่อเปลี่ยนไฟล์ในช่องเดิม
+          img.onclick = function () {
+            input.click();
+          };
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+  }
+
+  handlePreview(imgInput1, 1);
+  handlePreview(imgInput2, 2);
+
+  // คลิกกล่องใหญ่ให้เลือกช่องว่างก่อน (image1 -> image2)
+  if (uploadBox) {
+    uploadBox.addEventListener('click', function () {
+      if (imgInput1 && (!imgInput1.files || imgInput1.files.length === 0)) {
+        imgInput1.click();
+      } else if (imgInput2 && (!imgInput2.files || imgInput2.files.length === 0)) {
+        imgInput2.click();
+      } else {
+        // ทั้งสองช่องมีไฟล์แล้ว: ให้แก้ไฟล์ช่องแรก
+        imgInput1 && imgInput1.click();
+      }
+    });
+  }
+
+  // สำหรับรูปที่มีอยู่เดิมจากฐานข้อมูล: ให้คลิกเพื่อเปลี่ยนได้
+  previewContainer.querySelectorAll('img.preview-img').forEach(function (img) {
+    const slot = img.dataset.slot;
+    if (slot === '1' && imgInput1) {
+      img.addEventListener('click', () => imgInput1.click());
+    } else if (slot === '2' && imgInput2) {
+      img.addEventListener('click', () => imgInput2.click());
+    }
+  });
 });
 </script>
+
+<style>
+.review-page-wrapper {
+  background-color: #f5f7fb;
+  min-height: calc(100vh - 80px);
+}
+
+.review-card {
+  background-color: #ffffff;
+  border-radius: 28px;
+  padding: 2.5rem 3rem 2.5rem;
+  max-width: 760px;
+  width: 100%;
+}
+
+/* upload box */
+.upload-box {
+  width: 210px;
+  height: 210px;
+  border-radius: 24px;
+  border: 2px dashed #cfd3e6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color .2s ease, border-color .2s ease, transform .15s ease;
+}
+.upload-box:hover {
+  background-color: #f4f6ff;
+  border-color: #8fa3ff;
+  transform: translateY(-2px);
+}
+.upload-icon {
+  font-size: 3rem;
+  color: #555;
+}
+
+/* preview images */
+.preview-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.preview-img {
+  width: 90px;
+  height: 90px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  cursor: pointer;
+}
+
+/* comment box + send icon */
+.comment-wrapper textarea {
+  border-radius: 999px;
+  resize: none;
+  min-height: 48px;
+  padding: 0.7rem 1.2rem;
+}
+.send-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: #82a9ff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* stars */
+.star-row i {
+  font-size: 2rem;
+  margin: 0 .2rem;
+}
+
+/* responsive */
+@media (max-width: 768px) {
+  .review-card {
+    padding: 1.8rem 1.4rem 2rem;
+    border-radius: 20px;
+  }
+}
+</style>
 {% endblock %}

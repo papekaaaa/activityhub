@@ -6,17 +6,22 @@ from django.http import JsonResponse
 from .forms import UserUpdateForm, ProfileUpdateForm
 from .models import Profile, User
 from post.models import Post
-from activity_register.models import ActivityRegistration   # ✅ เพิ่มบรรทัดนี้
+from activity_register.models import ActivityRegistration
 
 
 @login_required
 def profile_view(request):
+    """
+    โปรไฟล์ของตัวเอง
+    - โพสต์ที่เราเป็น organizer
+    - กิจกรรมที่เราเคยลงทะเบียน
+    """
     user_posts = Post.objects.filter(
         organizer=request.user
     ).order_by('-created_at')
+
     profile = request.user.profile
 
-    # ✅ กิจกรรมที่เคยลงทะเบียน
     registrations = ActivityRegistration.objects.filter(
         user=request.user
     ).select_related('post').order_by('-id')
@@ -26,7 +31,7 @@ def profile_view(request):
         'profile': profile,
         'followers_count': profile.followers_count(),
         'following_count': profile.following_count(),
-        'registrations': registrations,   # ✅ ส่งไปหน้า template
+        'registrations': registrations,
     }
     return render(request, 'users/profile.html', context)
 
@@ -49,18 +54,35 @@ def profile_edit_view(request):
         user_form = UserUpdateForm(instance=request.user)
         profile_form = ProfileUpdateForm(instance=request.user.profile)
 
-    return render(request, 'users/profile_edit.html', {
-        'user_form': user_form,
-        'profile_form': profile_form
-    })
+    return render(
+        request,
+        'users/profile_edit.html',
+        {
+            'user_form': user_form,
+            'profile_form': profile_form,
+        },
+    )
 
 
-# ✅ โปรไฟล์ของผู้ใช้อื่น
 @login_required
 def profile_detail_view(request, user_id):
+    """
+    โปรไฟล์ของผู้ใช้อื่น
+    - โพสต์ที่เขาเป็น organizer (APPROVED)
+    - กิจกรรมที่เขาเคยเข้าร่วมจาก ActivityRegistration จริง ๆ
+    """
     target_user = get_object_or_404(User, id=user_id)
     profile = target_user.profile
-    posts = Post.objects.filter(organizer=target_user, status=Post.Status.APPROVED)
+
+    posts = Post.objects.filter(
+        organizer=target_user,
+        status=Post.Status.APPROVED,
+    ).order_by('-created_at')
+
+    registrations = ActivityRegistration.objects.filter(
+        user=target_user
+    ).select_related('post').order_by('-post__event_date', '-id')
+
     is_following = request.user.profile in profile.followers.all()
 
     context = {
@@ -70,13 +92,17 @@ def profile_detail_view(request, user_id):
         'is_following': is_following,
         'followers_count': profile.followers_count(),
         'following_count': profile.following_count(),
+        'registrations': registrations,
     }
     return render(request, 'users/profile_detail.html', context)
 
 
-# ✅ ปุ่มติดตาม / เลิกติดตาม (ใช้ได้ทั้ง form ปกติ + AJAX)
 @login_required
 def follow_toggle_view(request, user_id):
+    """
+    ปุ่มติดตาม / เลิกติดตาม
+    ใช้ได้ทั้ง submit ปกติ และ AJAX (เช็ค header x-requested-with)
+    """
     target_user = get_object_or_404(User, id=user_id)
     target_profile = target_user.profile
     my_profile = request.user.profile

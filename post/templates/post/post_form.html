@@ -14,8 +14,8 @@
 
     <!-- โปรไฟล์ตรงกลาง -->
     <div class="post-profile text-center my-3">
-      {% if request.user.profile and request.user.profile.profile_pic %}
-        <img src="{{ request.user.profile.profile_pic.url }}" class="profile-img" alt="profile" />
+      {% if user.is_authenticated and user.profile.profile_picture %}
+        <img src="{{ user.profile.profile_picture.url }}" class="profile-img" alt="profile" />
       {% else %}
         <img src="{% static 'images/default_profile.png' %}" class="profile-img" alt="profile" />
       {% endif %}
@@ -200,7 +200,6 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-  // สร้างแผนที่เริ่มต้นที่อุบลราชธานี
   const map = L.map('map').setView([15.2294, 104.8560], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 18,
@@ -212,7 +211,6 @@ document.addEventListener('DOMContentLoaded', function() {
   const latInput = document.getElementById('map_lat');
   const lngInput = document.getElementById('map_lng');
 
-  // ถ้ามีพิกัดเดิม ให้ปักหมุด
   if (latInput.value && lngInput.value) {
     const lat = parseFloat(latInput.value);
     const lng = parseFloat(lngInput.value);
@@ -222,7 +220,6 @@ document.addEventListener('DOMContentLoaded', function() {
     map.setView([lat, lng], 15);
   }
 
-  // คลิกบนแผนที่เพื่อปักหมุด
   map.on('click', function(e) {
     const { lat, lng } = e.latlng;
     if (marker) map.removeLayer(marker);
@@ -235,7 +232,6 @@ document.addEventListener('DOMContentLoaded', function() {
     lngInput.value = lng.toFixed(6);
   });
 
-  // ค้นหาสถานที่ด้วย Nominatim
   const searchInput = document.getElementById('map-search-input');
   const searchBtn = document.getElementById('map-search-btn');
 
@@ -281,7 +277,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ปุ่มลบหมุด
   const clearBtn = document.getElementById('map-clear-btn');
   clearBtn.addEventListener('click', function() {
     if (marker) {
@@ -300,16 +295,14 @@ body {
   font-family: 'Kanit', sans-serif;
 }
 
-/* กล่องหลักให้กว้างเต็มจอมากขึ้น */
 .post-card {
   background-color: #fff;
   width: 100%;
-  max-width: 1300px;  /* 👈 ให้ใหญ่กว่าหน้า create นิดหน่อย */
+  max-width: 1300px;
   border-radius: 22px;
   padding: 1.5rem 0 1rem;
 }
 
-/* ส่วนหัว */
 .post-header {
   border-bottom: 1px solid #eee;
   padding: 0 2rem 0.75rem;
@@ -327,7 +320,6 @@ body {
   color: #000;
 }
 
-/* โปรไฟล์กลาง */
 .post-profile {
   display: flex;
   justify-content: center;
@@ -340,7 +332,6 @@ body {
   border: 2px solid #ddd;
 }
 
-/* layout ซ้าย-ขวา */
 .post-body {
   display: flex;
   flex-wrap: wrap;
@@ -351,7 +342,6 @@ body {
   flex: 1 1 360px;
 }
 
-/* ช่องกรอกข้อมูล */
 .input-field {
   width: 100%;
   border: 1.5px solid #ccc;
@@ -366,7 +356,6 @@ body {
   box-shadow: 0 0 0 1px #000;
 }
 
-/* แผนที่ */
 .map-box {
   width: 100%;
   height: 330px;
@@ -375,7 +364,6 @@ body {
   overflow: hidden;
 }
 
-/* icon upload */
 .icon-group i {
   font-size: 1.6rem;
   color: #555;
@@ -387,7 +375,6 @@ body {
   transform: scale(1.1);
 }
 
-/* checkbox label */
 .checkbox-label {
   display: flex;
   align-items: center;
@@ -395,13 +382,11 @@ body {
   font-size: 0.95rem;
 }
 
-/* footer ปุ่มล่าง */
 .post-footer {
   border-top: 1px solid #eee;
   padding-top: 1rem;
 }
 
-/* ปุ่มยกเลิก / บันทึก */
 .btn-cancel,
 .btn-save {
   border-radius: 999px;
@@ -411,7 +396,6 @@ body {
   font-size: 0.95rem;
 }
 
-/* ยกเลิกแดง */
 .btn-cancel {
   background-color: #dc3545;
   color: #fff;
@@ -420,7 +404,6 @@ body {
   background-color: #c82333;
 }
 
-/* บันทึกเขียว */
 .btn-save {
   background-color: #28a745;
   color: #fff;
@@ -429,12 +412,10 @@ body {
   background-color: #218838;
 }
 
-/* แผนที่: ช่องค้นหา */
 .map-search .form-control {
   font-size: 0.9rem;
 }
 
-/* responsive เล็ก */
 @media (max-width: 768px) {
   .post-card {
     border-radius: 0;

@@ -185,7 +185,7 @@
   </div>
 </div>
 
-<!-- Popup สมัครเสร็จสิ้น (ใช้เฉพาะกรณีสมัครกิจกรรมจริง) -->
+<!-- Popup สมัครเสร็จสิ้น -->
 <div id="successModal"
      class="success-overlay {% if not success %}d-none{% endif %}">
   <div class="success-dialog">
@@ -193,12 +193,18 @@
             aria-label="Close"></button>
     <h5 class="fw-bold mb-3 text-center">สมัครเสร็จสิ้น</h5>
     <div class="text-center mb-3">
-      <button type="button" class="btn btn-join-chat px-4">
+      <button
+        type="button"
+        id="joinChatBtn"
+        class="btn btn-join-chat px-4"
+        {% if post %}
+        data-chat-url="{% url 'chat:activity_chat' post.id %}"
+        {% endif %}>
         เข้าร่วมแชทกลุ่ม
       </button>
     </div>
     <p class="text-center text-muted mb-0">
-      (ฟีเจอร์แชทจะถูกเปิดใช้ในภายหลัง)
+      คุณสามารถคุยกับผู้จัดและผู้เข้าร่วมกิจกรรมคนอื่น ๆ ได้ในห้องแชทกลุ่ม
     </p>
   </div>
 </div>
@@ -235,7 +241,6 @@
     color: #fff;
   }
 
-  /* popup */
   .success-overlay {
     position: fixed;
     inset: 0;
@@ -285,6 +290,8 @@
 document.addEventListener('DOMContentLoaded', function () {
   const overlay = document.getElementById('successModal');
   const closeBtn = overlay.querySelector('.custom-close');
+  const joinBtn = document.getElementById('joinChatBtn');
+  const chatUrl = joinBtn.dataset.chatUrl;
 
   function close() {
     overlay.classList.add('d-none');
@@ -296,6 +303,13 @@ document.addEventListener('DOMContentLoaded', function () {
       close();
     }
   });
+
+  // กด "เข้าร่วมแชทกลุ่ม" ให้เด้งไปหน้าแชท
+  if (chatUrl) {
+    joinBtn.addEventListener('click', function () {
+      window.location.href = chatUrl;
+    });
+  }
 });
 </script>
 {% endif %}

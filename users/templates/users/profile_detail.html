@@ -7,7 +7,6 @@
     background-color: #f5f6f7 !important;
   }
 
-  /* กล่องโปรไฟล์หลัก */
   .profile-header {
     background-color: #fff;
     border-radius: 16px;
@@ -16,17 +15,15 @@
     margin-bottom: 2rem;
   }
 
-  /* พื้นหลัง (cover) */
   .cover-area {
     position: relative;
     width: 100%;
     height: 230px;
-    background-color: #d9d9d9; /* สีเทาเริ่มต้น */
+    background-color: #d9d9d9;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
     overflow: hidden;
   }
-
   .cover-area img {
     width: 100%;
     height: 100%;
@@ -34,12 +31,12 @@
     display: block;
   }
 
-  /* ✅ รูปโปรไฟล์: ให้อยู่กึ่งกลางขอบล่างของ cover */
   .profile-picture-wrapper {
     position: relative;
     height: 0;
   }
 
+  /* ✅ โปรไฟล์ใหญ่ ให้เป็นสี่เหลี่ยมจัตุรัสแล้วครอบเป็นวงกลม */
   .profile-picture {
     width: 150px;
     height: 150px;
@@ -47,14 +44,13 @@
     border-radius: 50%;
     border: 6px solid #fff;
     position: absolute;
-    top: -75px; /* ครึ่งหนึ่งของความสูง */
+    top: -75px;
     left: 50%;
     transform: translateX(-50%);
     background-color: #fff;
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
   }
 
-  /* ข้อมูลโปรไฟล์ */
   .profile-info {
     text-align: center;
     padding-top: 90px;
@@ -62,7 +58,7 @@
   }
 
   .username {
-    font-size: 1.5rem;
+    font-size: 1.6rem;
     font-weight: 600;
     margin-bottom: 0.25rem;
   }
@@ -71,7 +67,7 @@
     background-color: #e8eeff;
     color: #2c2c2c;
     border: none;
-    border-radius: 10px;
+    border-radius: 999px;
     font-weight: 600;
     transition: background-color 0.2s ease;
   }
@@ -79,7 +75,6 @@
     background-color: #d0dcff;
   }
 
-  /* การ์ดโพสต์ */
   .post-card {
     border-radius: 16px;
     overflow: hidden;
@@ -87,90 +82,159 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.08);
   }
 
-  /* sidebar */
   .activity-sidebar {
     background-color: #fff;
     border-radius: 16px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     padding: 1.2rem;
   }
+
+  .activity-item-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .activity-item-meta {
+    font-size: 0.8rem;
+  }
+
+  /* ✅ avatar กลมทุกที่ที่เอาไปใช้ */
+  .avatar-circle {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+    flex-shrink: 0;
+  }
 </style>
 
 <div class="container mt-4 mb-5">
   <div class="profile-header">
-    <!-- ✅ พื้นหลัง cover -->
     <div class="cover-area">
       {% if profile.cover_picture %}
         <img src="{{ profile.cover_picture.url }}" alt="cover">
-      {% else %}
-        <!-- ไม่มีรูป cover จะใช้พื้นเทา -->
       {% endif %}
     </div>
 
-    <!-- ✅ รูปโปรไฟล์ (ลอยครึ่งขอบล่าง) -->
     <div class="profile-picture-wrapper">
-      <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture">
+      {% if profile.profile_picture %}
+        <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture">
+      {% else %}
+        <img src="{% static 'images/default_profile.png' %}" alt="Profile Picture" class="profile-picture">
+      {% endif %}
     </div>
 
-    <!-- ✅ ข้อมูลผู้ใช้ -->
     <div class="profile-info">
-      <h3 class="username">{{ target_user.first_name }} {{ target_user.last_name }}</h3>
-      <p class="text-muted">{{ target_user.email }}</p>
-      <div class="d-flex justify-content-center gap-4 mb-3">
+      <h3 class="username">
+        {{ target_user.first_name }} {{ target_user.last_name }}
+      </h3>
+      <p class="text-muted mb-1">{{ target_user.email }}</p>
+      <div class="d-flex justify-content-center gap-4 mb-3 text-muted small">
         <span><strong>{{ followers_count }}</strong> ผู้ติดตาม</span>
         <span><strong>{{ following_count }}</strong> กำลังติดตาม</span>
       </div>
 
       {% if request.user.id != target_user.id %}
-      <form method="post" action="{% url 'follow_toggle' target_user.id %}">
-        {% csrf_token %}
-        {% if is_following %}
-        <button class="btn follow-btn px-4"><i class="fa-solid fa-user-minus me-1"></i> เลิกติดตาม</button>
-        {% else %}
-        <button class="btn follow-btn px-4"><i class="fa-solid fa-user-plus me-1"></i> ติดตาม</button>
-        {% endif %}
-      </form>
+      <div class="d-flex justify-content-center gap-2 mb-3">
+        <form method="post" action="{% url 'follow_toggle' target_user.id %}">
+          {% csrf_token %}
+          {% if is_following %}
+            <button class="btn follow-btn px-4">
+              <i class="fa-solid fa-user-minus me-1"></i> เลิกติดตาม
+            </button>
+          {% else %}
+            <button class="btn follow-btn px-4">
+              <i class="fa-solid fa-user-plus me-1"></i> ติดตาม
+            </button>
+          {% endif %}
+        </form>
+
+        <a href="{% url 'chat:dm_chat' target_user.id %}"
+           class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+           style="width:44px;height:44px;">
+          <i class="fa-regular fa-comment"></i>
+        </a>
+      </div>
       {% endif %}
     </div>
   </div>
 
-  <!-- ✅ โพสต์และกิจกรรม -->
   <div class="row">
     <div class="col-lg-8 mb-4">
       <h5 class="fw-semibold mb-3">โพสต์</h5>
       {% if posts %}
-      {% for post in posts %}
-      <div class="post-card mb-4 p-3">
-        <div class="d-flex align-items-center mb-3">
-          <img src="{{ profile.profile_picture.url }}" class="rounded-circle me-2" width="45" height="45" style="object-fit:cover;">
-          <div>
-            <p class="mb-0 fw-semibold">{{ target_user.first_name }} {{ target_user.last_name }}</p>
-            <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+        {% for post in posts %}
+        <div class="post-card mb-4 p-3">
+          <div class="d-flex align-items-center mb-3">
+            {% if profile.profile_picture %}
+              <img src="{{ profile.profile_picture.url }}"
+                   class="avatar-circle me-2"
+                   alt="{{ target_user.first_name }} {{ target_user.last_name }}">
+            {% else %}
+              <img src="{% static 'images/default_profile.png' %}"
+                   class="avatar-circle me-2"
+                   alt="Profile Picture">
+            {% endif %}
+            <div>
+              <p class="mb-0 fw-semibold">
+                {{ target_user.first_name }} {{ target_user.last_name }}
+              </p>
+              <small class="text-muted">
+                {{ post.created_at|date:"d M Y" }}
+              </small>
+            </div>
           </div>
+
+          {% if post.image %}
+            <img src="{{ post.image.url }}"
+                 class="img-fluid rounded-3 mb-3"
+                 alt="{{ post.title }}">
+          {% endif %}
+
+          <p class="fw-semibold mb-1">{{ post.title }}</p>
+          <p class="text-muted mb-2">{{ post.description|truncatechars:150 }}</p>
+          <a href="{% url 'post:post_detail' post.id %}"
+             class="text-decoration-none text-primary fw-semibold">
+            ดูเพิ่มเติม
+          </a>
         </div>
-        {% if post.image %}
-        <img src="{{ post.image.url }}" class="img-fluid rounded-3 mb-3" alt="{{ post.title }}">
-        {% endif %}
-        <p class="fw-semibold">{{ post.title }}</p>
-        <p class="text-muted">{{ post.description|truncatechars:150 }}</p>
-        <a href="{% url 'post:post_detail' post.id %}" class="text-decoration-none text-primary fw-semibold">ดูเพิ่มเติม</a>
-      </div>
-      {% endfor %}
+        {% endfor %}
       {% else %}
-      <div class="text-center text-muted mt-5">ยังไม่มีโพสต์กิจกรรม</div>
+        <div class="text-center text-muted mt-5">
+          ยังไม่มีโพสต์กิจกรรม
+        </div>
       {% endif %}
     </div>
 
     <div class="col-lg-4">
       <div class="activity-sidebar">
         <h6 class="fw-semibold mb-3">กิจกรรมที่เคยเข้าร่วม</h6>
-        <ul class="list-unstyled mb-0">
-          <li>กิจกรรม แบกเป้เพื่อสังคม</li>
-          <li>กิจกรรม ปันน้ำใจสร้างบ้านเด็ก</li>
-          <li>กิจกรรม โครงการฟื้นป่า</li>
-          <li>กิจกรรม โครงการแบ่งปันสุข</li>
-          <li>กิจกรรม อาสาสมัครช่วยสอนหนังสือ</li>
-        </ul>
+
+        {% if registrations %}
+          <div class="list-group list-group-flush">
+            {% for reg in registrations|slice:":5" %}
+              <a href="{% url 'post:post_detail' reg.post.id %}"
+                 class="list-group-item list-group-item-action border-0 px-0 mb-2">
+                <div class="activity-item-title text-truncate">
+                  {{ reg.post.title }}
+                </div>
+                <div class="text-muted activity-item-meta">
+                  {% if reg.post.event_date %}
+                    📅 {{ reg.post.event_date|date:"j M Y" }}
+                  {% endif %}
+                  {% if reg.post.location %}
+                    · 📍 {{ reg.post.location }}
+                  {% endif %}
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">
+            ยังไม่มีกิจกรรมที่ผู้ใช้นี้เคยเข้าร่วม
+          </p>
+        {% endif %}
       </div>
     </div>
   </div>

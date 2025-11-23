@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Avg
+from django.db.models import Avg, Q   # ✅ เพิ่ม Q เข้ามาใช้สำหรับค้นหา
 from post.models import Post
 from activity_register.models import ActivityReview
 import json
@@ -23,17 +23,40 @@ def about_view(request):
 
 
 def home_view(request):
+    """
+    หน้า feed หลัก
+    - รองรับการกรองตามหมวดหมู่ (category)
+    - รองรับการค้นหา (search) ตามชื่อกิจกรรม / รายละเอียด / สถานที่ / ชื่อผู้จัด
+    """
+    # base queryset
     posts = Post.objects.filter(status=Post.Status.APPROVED).order_by('-event_date')
-    categories = [c[0] for c in Post.CATEGORY_CHOICES]
-    selected_category = request.GET.get('category')
 
+    # หมวดหมู่ทั้งหมดสำหรับ sidebar
+    categories = [c[0] for c in Post.CATEGORY_CHOICES]
+
+    # รับค่าจาก query string
+    selected_category = request.GET.get('category')
+    search_query = request.GET.get('search', '').strip()
+
+    # กรองตามหมวดหมู่ (ถ้ามี)
     if selected_category:
         posts = posts.filter(category=selected_category)
+
+    # กรองตามคำค้นหา (ถ้ามี)
+    if search_query:
+        posts = posts.filter(
+            Q(title__icontains=search_query) |
+            Q(description__icontains=search_query) |
+            Q(location__icontains=search_query) |
+            Q(organizer__first_name__icontains=search_query) |
+            Q(organizer__last_name__icontains=search_query)
+        ).distinct()
 
     context = {
         'posts': posts,
         'categories': categories,
         'selected_category': selected_category,
+        'search_query': search_query,
     }
     return render(request, 'home/homes.html', context)
 

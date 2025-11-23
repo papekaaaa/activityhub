@@ -130,16 +130,36 @@
       <div class="text-muted small mb-2 mb-md-0">
         <!-- future info -->
       </div>
+
+      <!-- ปุ่มด้านขวา -->
       <div class="profile-actions d-flex flex-wrap gap-2">
-        <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm">
-          <i class="fa-solid fa-pen me-1"></i> แก้ไขโปรไฟล์
-        </a>
-        <a href="{% url 'activity_register:edit_register_profile' %}" class="btn btn-outline-secondary btn-sm">
-          <i class="fa-solid fa-id-card-clip me-1"></i> แก้ไขข้อมูลการสมัครกิจกรรม
-        </a>
-        <a href="{% url 'post:create_post' %}" class="btn btn-primary btn-sm">
-          <i class="fa-solid fa-plus me-1"></i> สร้างกิจกรรมใหม่
-        </a>
+
+        {# ถ้าเป็นโปรไฟล์ของตัวเอง ให้แสดงปุ่มแก้ไข / สร้างกิจกรรม #}
+        {% if request.user.id == user.id %}
+          <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm">
+            <i class="fa-solid fa-pen me-1"></i> แก้ไขโปรไฟล์
+          </a>
+          <a href="{% url 'activity_register:edit_register_profile' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-id-card-clip me-1"></i> แก้ไขข้อมูลการสมัครกิจกรรม
+          </a>
+          <a href="{% url 'post:create_post' %}" class="btn btn-primary btn-sm">
+            <i class="fa-solid fa-plus me-1"></i> สร้างกิจกรรมใหม่
+          </a>
+
+        {# ถ้าเป็นการดูโปรไฟล์คนอื่น ให้โชว์ ติดตาม + แชท #}
+        {% else %}
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm rounded-pill px-3 follow-btn"
+            data-following="false"
+            data-user-id="{{ user.id }}">
+            + ติดตาม
+          </button>
+
+          <a href="{% url 'chat:dm_chat' user.id %}" class="btn btn-outline-primary btn-sm">
+            <i class="fa-regular fa-comment"></i> แชท
+          </a>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -277,6 +297,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+  // modal ลบกิจกรรม
   var deleteModal = document.getElementById('deleteModal');
   if (deleteModal) {
     deleteModal.addEventListener('show.bs.modal', function (event) {
@@ -288,6 +309,25 @@ document.addEventListener('DOMContentLoaded', function () {
       deleteModal.querySelector('#deleteForm').setAttribute('action', deleteUrl);
     });
   }
+
+  // ปุ่มติดตาม (frontend toggle เฉย ๆ เหมือนหน้า feed)
+  document.querySelectorAll('.follow-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const following = btn.getAttribute('data-following') === 'true';
+      if (following) {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+        btn.textContent = '+ ติดตาม';
+        btn.setAttribute('data-following', 'false');
+      } else {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary');
+        btn.textContent = 'กำลังติดตาม';
+        btn.setAttribute('data-following', 'true');
+      }
+      // ถ้าจะทำ follow จริง ให้ยิง fetch ไปที่ view เหมือนหน้า home ได้
+    });
+  });
 });
 </script>
 {% endblock %}

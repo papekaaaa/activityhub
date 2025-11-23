@@ -1,12 +1,14 @@
 from datetime import date, datetime
 
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from .forms import ActivityRegistrationForm, ActivityReviewForm
 from .models import ActivityRegistration, ActivityReview
+from chat.models import ChatMembership, ChatRoom
 from post.models import Post
 
 
@@ -43,9 +45,26 @@ def register_activity(request, post_id):
             registration.post = post
             registration.save()
 
+            # เก็บข้อมูลไว้ใน session สำหรับกรอกอัตโนมัติครั้งถัดไป
             request.session["register_profile"] = _serialize_for_session(
                 form.cleaned_data
             )
+
+            # ดึงห้องแชทของกิจกรรมนี้ แล้วเพิ่ม user เข้าห้อง
+            room = ChatRoom.objects.filter(
+                room_type="GROUP",
+                post=post,
+            ).first()
+
+            chat_room_url = None
+            if room:
+                ChatMembership.objects.get_or_create(
+                    room=room,
+                    user=request.user,
+                    defaults={"is_admin": False},
+                )
+                # URL ไปหน้าห้องแชทกิจกรรม
+                chat_room_url = reverse("chat:activity_chat", args=[post.id])
 
             messages.success(request, "สมัครเข้าร่วมกิจกรรมเรียบร้อยแล้ว")
             return render(
@@ -56,15 +75,20 @@ def register_activity(request, post_id):
                     "post": post,
                     "success": True,
                     "edit_mode": False,
+                    "chat_room_url": chat_room_url,
                 },
             )
     else:
         if session_data:
+            # ใช้ข้อมูลจาก session กรอกให้
             form = ActivityRegistrationForm(initial=session_data)
         else:
-            last_reg = ActivityRegistration.objects.filter(
-                user=request.user
-            ).order_by("-id").first()
+            # ถ้าไม่มี session ให้ลองดึงข้อมูลจากการสมัครครั้งล่าสุด
+            last_reg = (
+                ActivityRegistration.objects.filter(user=request.user)
+                .order_by("-id")
+                .first()
+            )
             if last_reg:
                 form = ActivityRegistrationForm(instance=last_reg)
             else:
@@ -78,6 +102,7 @@ def register_activity(request, post_id):
             "post": post,
             "success": False,
             "edit_mode": False,
+            "chat_room_url": None,
         },
     )
 
@@ -87,17 +112,25 @@ def register_activity(request, post_id):
 # -----------------------------
 @login_required
 def edit_register_profile(request):
+    """
+    แก้ไขข้อมูลพื้นฐานที่ใช้สมัครกิจกรรม
+    - ไม่ได้สร้าง/แก้ ActivityRegistration จริง
+    - แค่เก็บค่าไว้ใน session (และ bootstrap จาก registration ล่าสุดถ้ามี)
+    """
     session_data = request.session.get("register_profile")
 
     last_reg = None
     if not session_data:
-        last_reg = ActivityRegistration.objects.filter(
-            user=request.user
-        ).order_by("-id").first()
+        last_reg = (
+            ActivityRegistration.objects.filter(user=request.user)
+            .order_by("-id")
+            .first()
+        )
 
     if request.method == "POST":
         form = ActivityRegistrationForm(request.POST)
         if form.is_valid():
+            # เซฟเฉพาะ cleaned_data ลง session
             request.session["register_profile"] = _serialize_for_session(
                 form.cleaned_data
             )
@@ -132,12 +165,12 @@ def joined_activities(request):
     """
     เงื่อนไข: user เคยสมัคร + วันกิจกรรมผ่านไปแล้ว
     """
-    now = timezone.now()
+    today = timezone.localdate()
 
     joined_posts = (
         Post.objects.filter(
             registrations__user=request.user,
-            event_date__lt=now,
+            event_date__lt=today,
         )
         .distinct()
         .order_by("-event_date")
@@ -164,7 +197,20 @@ def review_activity(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
     # ยังไม่ถึงวันกิจกรรม ห้ามรีวิว
-    if not post.event_date or post.event_date > timezone.now():
+    today = timezone.localdate()
+
+    # แปลง event_date ให้กลายเป็น date เสมอ (รองรับทั้ง DateField / DateTimeField)
+    event_date = None
+    if post.event_date:
+        if isinstance(post.event_date, datetime):
+            # ถ้าเป็น DateTimeField -> แปลงเป็น date ตาม timezone ปัจจุบัน
+            event_date = timezone.localtime(post.event_date).date()
+        else:
+            # ถ้าเป็น DateField อยู่แล้ว
+            event_date = post.event_date
+
+    # ถ้าไม่มีวันที่ หรือยังไม่ถึงวันกิจกรรม ห้ามรีวิว
+    if not event_date or event_date > today:
         messages.error(request, "ยังไม่สามารถรีวิวได้ ต้องรอให้กิจกรรมจบก่อน")
         return redirect("activity_register:joined_activities")
 
