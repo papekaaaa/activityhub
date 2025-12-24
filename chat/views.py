@@ -78,9 +78,9 @@ def inbox_view(request):
             'is_group': (room.room_type == 'GROUP'),
         })
 
-    # เรียงตามเวลาข้อความล่าสุด ถ้าไม่มี ใช้ id ห้องแทน
+    # เรียงตามเวลาข้อความล่าสุด (ใช้ timestamp เป็น float ทั้งหมดเลี่ยง datetime/int)
     rooms_data.sort(
-        key=lambda r: r['last_time'] or r['room'].id,
+        key=lambda r: r['last_time'].timestamp() if r['last_time'] else 0,
         reverse=True
     )
 
@@ -110,6 +110,17 @@ def activity_chat_view(request, post_id):
         user=request.user,
         defaults={'is_admin': False},
     )
+
+    # รับ POST จากฟอร์มส่งข้อความแล้วบันทึก
+    if request.method == "POST":
+        text = request.POST.get("content", "").strip()
+        if text:
+            ChatMessage.objects.create(
+                room=room,
+                sender=request.user,
+                content=text,
+            )
+        return redirect('chat:activity_chat', post_id=post.id)
 
     messages_qs = ChatMessage.objects.filter(
         room=room
@@ -173,6 +184,17 @@ def dm_chat_view(request, user_id):
             ChatMembership(room=room, user=request.user, is_admin=False),
             ChatMembership(room=room, user=other_user, is_admin=False),
         ])
+
+    # รับ POST จากฟอร์มส่งข้อความแล้วบันทึก
+    if request.method == "POST":
+        text = request.POST.get("content", "").strip()
+        if text:
+            ChatMessage.objects.create(
+                room=room,
+                sender=request.user,
+                content=text,
+            )
+        return redirect('chat:dm_chat', user_id=other_user.id)
 
     messages_qs = ChatMessage.objects.filter(
         room=room

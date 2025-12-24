@@ -1,0 +1,50 @@
+<h3>รายงานโพสต์</h3>
+<table>
+  <tr>
+    <th>เวลา</th><th>ผู้รายงาน</th><th>โพสต์</th><th>เหตุผล</th><th>รูป</th><th>สถานะ</th><th>จัดการ</th>
+  </tr>
+  {% for r in post_reports %}
+  <tr>
+    <td>{{ r.created_at }}</td>
+    <td>{{ r.reporter }}</td>
+    <td>#{{ r.post.id }}</td>
+    <td>{{ r.reason }}</td>
+    <td>
+      {% if r.evidence_image %}
+        <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูป</a>
+      {% endif %}
+    </td>
+    <td>{{ r.get_status_display }}</td>
+    <td>
+      <a href="{% url 'admin_action_on_post_report' r.id 'hide' %}">ซ่อน</a>
+      <a href="{% url 'admin_action_on_post_report' r.id 'delete' %}">ลบ</a>
+      <a href="{% url 'admin_action_on_post_report' r.id 'reject' %}">ปฏิเสธ</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h3>รายงานบัญชี</h3>
+<table>
+  <tr>
+    <th>เวลา</th><th>ผู้รายงาน</th><th>บัญชีที่ถูกรายงาน</th><th>เหตุผล</th><th>รูป</th><th>สถานะ</th><th>จัดการ</th>
+  </tr>
+  {% for r in account_reports %}
+  <tr>
+    <td>{{ r.created_at }}</td>
+    <td>{{ r.reporter }}</td>
+    <td>{{ r.reported_user }}</td>
+    <td>{{ r.reason }}</td>
+    <td>
+      {% if r.evidence_image %}
+        <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูป</a>
+      {% endif %}
+    </td>
+    <td>{{ r.get_status_display }}</td>
+    <td>
+      <a href="{% url 'admin_action_on_account_report' r.id 'suspend' %}">ระงับบัญชี</a>
+      <a href="{% url 'admin_action_on_account_report' r.id 'reject' %}">ปฏิเสธ</a>
+    </td>
+  </tr>
+  {% endfor %}
+</table>

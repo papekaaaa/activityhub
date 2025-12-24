@@ -27,7 +27,7 @@ class ActivityRegistration(models.Model):
         related_name='registrations'
     )
 
-    # ใครสมัคร
+    #ใครสมัคร
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

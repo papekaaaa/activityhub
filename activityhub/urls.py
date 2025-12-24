@@ -46,7 +46,7 @@ urlpatterns = [
     path('user/', include('users.urls')),
     path('activity/', include('activity_register.urls', namespace='activity_register')),
     path('chat/', include(('chat.urls', 'chat'), namespace='chat')),
-    
+    path("notifications/", include(("notifications.urls", "notifications"), namespace="notifications")),
 
 ]
 

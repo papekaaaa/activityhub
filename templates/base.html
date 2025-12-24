@@ -95,6 +95,48 @@
                 margin-top: 8px;
             }
         }
+
+        /* ✅ (เพิ่ม) สไตล์ modal แจ้งเตือนให้คล้าย mock */
+        .notif-modal-content {
+            border-radius: 28px;
+            overflow: hidden;
+        }
+        .notif-modal-header {
+            justify-content: center;
+            border-bottom: 1px solid #d9d9d9;
+        }
+        .notif-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 18px 22px;
+            border-top: 1px solid #d9d9d9;
+        }
+        .notif-left .notif-name {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .notif-left .notif-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .notif-left .notif-meta {
+            color: #666;
+            font-size: 0.92rem;
+            line-height: 1.35;
+        }
+        .notif-right {
+            color: #8b1f1f;
+            font-weight: 600;
+            text-align: right;
+            white-space: pre-line;
+        }
+        .notif-actions {
+            margin-top: 10px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
     </style>
     {% endblock %}
 </head>
@@ -117,6 +159,27 @@
         {% block content %}
         {% endblock %}
     </main>
+
+    <!-- ✅ (เพิ่ม) Modal แจ้งเตือน (แสดงทุกหน้า) -->
+    {% if user.is_authenticated %}
+    <div class="modal fade" id="notifModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content notif-modal-content">
+          <div class="modal-header notif-modal-header">
+            <h5 class="modal-title fw-semibold">แจ้งเตือน <i class="fa-regular fa-bell"></i></h5>
+            <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <div class="modal-body p-0">
+            <div id="notifList"></div>
+            <div id="notifEmpty" class="p-4 text-center text-muted" style="display:none;">
+              ยังไม่มีแจ้งเตือน
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -152,6 +215,110 @@
     }
     window.CSRF_TOKEN = getCookie('csrftoken');
     </script>
+
+    <!-- ✅ (เพิ่ม) Notification JS -->
+    {% if user.is_authenticated %}
+    <script>
+      function escapeHtml(s){
+        if(!s) return "";
+        return String(s)
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+
+      async function loadNotifications(){
+        const res = await fetch("/notifications/api/list/");
+        if(!res.ok) return;
+
+        const data = await res.json();
+
+        // badge
+        const badge = document.getElementById("notifBadge");
+        if (badge) {
+          if (data.unread > 0) {
+            badge.style.display = "inline-block";
+            badge.textContent = data.unread;
+          } else {
+            badge.style.display = "none";
+          }
+        }
+
+        // list
+        const list = document.getElementById("notifList");
+        const empty = document.getElementById("notifEmpty");
+        if(!list || !empty) return;
+
+        list.innerHTML = "";
+        if(!data.items || data.items.length === 0){
+          empty.style.display = "block";
+          return;
+        }
+        empty.style.display = "none";
+
+        data.items.forEach(n => {
+          const row = document.createElement("div");
+          row.className = "notif-row";
+
+          const left = document.createElement("div");
+          left.className = "notif-left";
+
+          // ข้อความหลัก
+          left.innerHTML = `
+            <div class="notif-name">${escapeHtml("{{ user.first_name }} {{ user.last_name }}")}</div>
+            <div class="notif-title">${escapeHtml(n.title || "")}</div>
+            <div class="notif-meta">${escapeHtml(n.message || "")}</div>
+            <div class="notif-actions">
+              <a href="${escapeHtml(n.link_url || "#")}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">ดู</a>
+              <button type="button" class="btn btn-outline-primary btn-sm rounded-pill px-3"
+                      ${n.is_read ? "disabled" : ""}>
+                ${n.is_read ? "อ่านแล้ว" : "ทำเครื่องหมายว่าอ่านแล้ว"}
+              </button>
+            </div>
+          `;
+
+          // ขวา (เน้นแดงแบบ mock) — ถ้า message เป็นข้อความเตือนอยู่แล้วจะขึ้นซ้ำได้
+          // เลยเอาเฉพาะบาง kind ถ้าต้องการคุมข้อความค่อยปรับใน API
+          const right = document.createElement("div");
+          right.className = "notif-right";
+          right.textContent = (n.kind === "REGISTER_REMINDER" || n.kind === "SAVED_REMINDER") ? (n.message || "") : "";
+
+          const markBtn = left.querySelector("button");
+          if (markBtn && !n.is_read) {
+            markBtn.addEventListener("click", async () => {
+              const r = await fetch(`/notifications/api/read/${n.id}/`, {
+                method: "POST",
+                headers: { "X-CSRFToken": window.CSRF_TOKEN },
+              });
+              if (r.ok) {
+                await loadNotifications();
+              }
+            });
+          }
+
+          row.appendChild(left);
+          row.appendChild(right);
+          list.appendChild(row);
+        });
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        // โหลด badge ตอนเข้าเว็บ
+        loadNotifications();
+
+        // เปิด modal แล้วค่อยโหลดรายการอีกที
+        const modal = document.getElementById("notifModal");
+        if (modal) {
+          modal.addEventListener("shown.bs.modal", loadNotifications);
+        }
+
+        // polling อัปเดต badge ทุก 60 วิ
+        setInterval(loadNotifications, 60000);
+      });
+    </script>
+    {% endif %}
 </body>
 
 </html>

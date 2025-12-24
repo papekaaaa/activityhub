@@ -112,7 +112,7 @@ def post_delete_view(request, post_id):
 
 
 # ------------------------------
-# ฟังก์ชัน: แสดงรายละเอียดกิจกรรม + รีวิว
+# ฟังก์ชัน: แสดงรายละเอียดกิจกรรม + รีวิว (สำหรับ route post:post_detail)
 # ------------------------------
 def post_detail_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
@@ -176,7 +176,11 @@ def toggle_save(request, post_id):
 # ------------------------------
 @login_required
 def liked_posts_view(request):
-    liked_posts = request.user.liked_posts.all().order_by('-created_at')
+    # ✅ ไม่แสดงโพสต์ที่ถูกซ่อน/ลบแล้ว
+    liked_posts = request.user.liked_posts.filter(
+        is_hidden=False,
+        is_deleted=False,
+    ).order_by('-created_at')
     context = {'posts': liked_posts, 'title': 'กิจกรรมที่กดถูกใจ ❤️'}
     return render(request, 'post/liked_posts.html', context)
 
@@ -186,7 +190,11 @@ def liked_posts_view(request):
 # ------------------------------
 @login_required
 def saved_posts_view(request):
-    saved_posts = request.user.saved_posts.all().order_by('-created_at')
+    # ✅ ไม่แสดงโพสต์ที่ถูกซ่อน/ลบแล้ว
+    saved_posts = request.user.saved_posts.filter(
+        is_hidden=False,
+        is_deleted=False,
+    ).order_by('-created_at')
     context = {'posts': saved_posts, 'title': 'กิจกรรมที่บันทึกไว้ 🔖'}
     return render(request, 'post/saved_posts.html', context)
 
@@ -198,6 +206,8 @@ def saved_posts_view(request):
 def map_overview(request):
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
+        is_hidden=False,
+        is_deleted=False,
         map_lat__isnull=False,
         map_lng__isnull=False,
     )

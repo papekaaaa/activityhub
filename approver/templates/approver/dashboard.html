@@ -56,8 +56,11 @@
               <div class="text-muted small">{{ u.email }}</div>
             </div>
             <div class="d-flex gap-2">
-              <!-- ปุ่มลบบัญชี (ตอนนี้เป็น UI เฉย ๆ ไว้ผูก logic ลบทีหลัง) -->
-              <button type="button" class="btn-admin-danger">ลบ</button>
+              <!-- ✅ ปุ่มลบบัญชี = ปิดการใช้งาน (ไม่ลบข้อมูลจริง) -->
+              <form action="{% url 'deactivate_user' u.id %}" method="post" style="margin: 0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-admin-danger">ลบ</button>
+              </form>
             </div>
           </div>
         {% empty %}
@@ -80,12 +83,33 @@
               <div class="small text-muted">
                 ผู้สร้าง:
                 {{ p.organizer.get_full_name|default:p.organizer.username }}
+
+                {# ✅ แสดงสถานะถ้าโพสต์ถูกซ่อนหรือลบแล้ว #}
+                {% if p.is_deleted %}
+                  <span class="admin-status-badge admin-status-deleted">ลบแล้ว</span>
+                {% elif p.is_hidden %}
+                  <span class="admin-status-badge admin-status-hidden">ซ่อนแล้ว</span>
+                {% endif %}
               </div>
             </div>
             <div class="d-flex gap-2">
-              <!-- ปุ่มซ่อน / ลบ (ตอนนี้เป็น UI เฉย ๆ) -->
-              <button type="button" class="btn-admin-secondary">ซ่อน</button>
-              <button type="button" class="btn-admin-danger">ลบ</button>
+              {% if p.is_deleted or p.is_hidden %}
+                {# ✅ ถ้าโพสต์ถูกซ่อน/ลบแล้ว ให้แสดงปุ่มกู้คืนแทน #}
+                <form action="{% url 'restore_post' p.id %}" method="post" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-admin-secondary">กู้คืน</button>
+                </form>
+              {% else %}
+                {# ✅ ปกติ: ยังไม่ถูกซ่อน/ลบ -> แสดงปุ่มซ่อน/ลบ #}
+                <form action="{% url 'hide_post' p.id %}" method="post" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-admin-secondary">ซ่อน</button>
+                </form>
+                <form action="{% url 'soft_delete_post' p.id %}" method="post" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-admin-danger">ลบ</button>
+                </form>
+              {% endif %}
             </div>
           </div>
         {% empty %}
@@ -103,17 +127,26 @@
         {% for r in post_reports %}
           <div class="admin-row">
             <div class="flex-grow-1">
-              <div class="admin-link">
+              <a class="admin-link" href="{% url 'post:post_detail' r.post.id %}" target="_blank">
                 {{ r.post.title }}
-              </div>
+              </a>
               <div class="small text-muted">
                 เหตุผล: {{ r.reason }} |
                 ผู้รายงาน: {{ r.reporter.get_full_name|default:r.reporter.username }}
+                {% if r.evidence_image %}
+                  | <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูปหลักฐาน</a>
+                {% endif %}
               </div>
             </div>
             <div class="d-flex gap-2">
-              <button type="button" class="btn-admin-secondary">ซ่อน</button>
-              <button type="button" class="btn-admin-danger">ลบ</button>
+              <form action="{% url 'handle_post_report_hide' r.id %}" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-admin-secondary">ซ่อน</button>
+              </form>
+              <form action="{% url 'handle_post_report_delete' r.id %}" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-admin-danger">ลบ</button>
+              </form>
             </div>
           </div>
         {% empty %}
@@ -126,18 +159,26 @@
         {% for r in user_reports %}
           <div class="admin-row">
             <div class="flex-grow-1">
-              <div class="admin-link">
+              <a class="admin-link" href="{% url 'profile_detail' r.user.id %}" target="_blank">
                 {{ r.user.get_full_name|default:r.user.username }}
-              </div>
+              </a>
               <div class="small text-muted">
                 เหตุผล: {{ r.reason }} |
                 ผู้รายงาน: {{ r.reporter.get_full_name|default:r.reporter.username }}
+                {% if r.evidence_image %}
+                  | <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูปหลักฐาน</a>
+                {% endif %}
               </div>
             </div>
             <div class="d-flex gap-2">
-              <!-- เลือกว่าจะลบบัญชีหรือไม่ลบ -->
-              <button type="button" class="btn-admin-secondary">ไม่ลบ</button>
-              <button type="button" class="btn-admin-danger">ลบบัญชี</button>
+              <form action="{% url 'handle_user_report_reject' r.id %}" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-admin-secondary">ไม่ลบ</button>
+              </form>
+              <form action="{% url 'handle_user_report_deactivate' r.id %}" method="post" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn-admin-danger">ลบบัญชี</button>
+              </form>
             </div>
           </div>
         {% empty %}
@@ -313,6 +354,23 @@
   .btn-admin-success {
     background-color: #8ddc98;
     color: #1f6b32;
+  }
+
+  /* ✅ Badge แสดงสถานะซ่อน/ลบในหน้า approver */
+  .admin-status-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+  }
+  .admin-status-hidden {
+    background-color: #ffe9b3;
+    color: #8a6d1d;
+  }
+  .admin-status-deleted {
+    background-color: #ffd0d0;
+    color: #8b1f1f;
   }
 
   @media (max-width: 768px) {

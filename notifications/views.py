@@ -1,0 +1,126 @@
+from datetime import timedelta
+from django.apps import apps
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse, HttpResponseForbidden
+from django.utils import timezone
+from django.views.decorators.http import require_GET, require_POST
+
+from .models import Notification
+
+
+def _get_registration_model():
+    """
+    พยายามหาโมเดล “การสมัครกิจกรรม” โดยไม่ไปเดาชื่อมั่วแบบตายตัว
+    คุณสามารถเปลี่ยนให้ชี้ชื่อจริงได้ภายหลังถ้าต้องการ
+    """
+    candidates = [
+        ("activity_register", "ActivityRegistration"),
+        ("activity_register", "Registration"),
+        ("activity_register", "ActivityRegister"),
+    ]
+    for app_label, model_name in candidates:
+        try:
+            model = apps.get_model(app_label, model_name)
+            if model:
+                return model
+        except LookupError:
+            continue
+    return None
+
+
+def _ensure_activity_notifications(user):
+    """
+    สร้างแจ้งเตือนตามกติกา:
+    - ผู้สมัคร: เตือนก่อน 1 วัน
+    - ผู้บันทึก: เตือนก่อน 3 วัน (พร้อมข้อความชวนสมัคร)
+    ทำตอนเปิดกระดิ่งก็พอ ไม่ต้องตั้ง cron ก่อน
+    """
+    today = timezone.localdate()
+    d1 = today + timedelta(days=1)
+    d3 = today + timedelta(days=3)
+
+    Post = apps.get_model("post", "Post")
+
+    # 1) Saved reminder (3 วันก่อน)
+    saved_posts = user.saved_posts.filter(
+        event_date__date=d3,
+        is_deleted=False,
+        is_hidden=False,
+        status="APPROVED",
+    )
+    for p in saved_posts:
+        Notification.objects.get_or_create(
+            user=user,
+            post=p,
+            kind=Notification.Kind.SAVED_REMINDER,
+            trigger_date=d3,
+            defaults={
+                "title": p.title,
+                "message": "กิจกรรมที่คุณจัดเก็บ ถูกจัดขึ้นในอีก 3 วัน สมัครได้เลย",
+                "link_url": f"/post/{p.id}/",  # ใช้ลิงก์หน้า detail เดิม
+            },
+        )
+
+    # 2) Register reminder (1 วันก่อน) — ต้องมีโมเดลสมัครกิจกรรม
+    RegModel = _get_registration_model()
+    if RegModel:
+        # พยายามเดาคีย์ฟิลด์ที่ใช้กันทั่วไป: user + post
+        reg_qs = RegModel.objects.filter(user=user).select_related("post")
+        for reg in reg_qs:
+            p = getattr(reg, "post", None)
+            if not p or not getattr(p, "event_date", None):
+                continue
+
+            if timezone.localdate(p.event_date) == d1 and (not p.is_deleted) and (not p.is_hidden) and (p.status == "APPROVED"):
+                Notification.objects.get_or_create(
+                    user=user,
+                    post=p,
+                    kind=Notification.Kind.REGISTER_REMINDER,
+                    trigger_date=d1,
+                    defaults={
+                        "title": p.title,
+                        "message": "กิจกรรมที่คุณสมัครจะถูกจัดขึ้นในอีก 1 วัน",
+                        "link_url": f"/post/{p.id}/",
+                    },
+                )
+
+
+@login_required
+@require_GET
+def api_list_notifications(request):
+    _ensure_activity_notifications(request.user)
+
+    qs = Notification.objects.filter(user=request.user).order_by("-created_at")[:30]
+    data = []
+    for n in qs:
+        data.append(
+            {
+                "id": n.id,
+                "kind": n.kind,
+                "title": n.title,
+                "message": n.message,
+                "link_url": n.link_url,
+                "is_read": n.is_read,
+                "created_at": n.created_at.isoformat(),
+            }
+        )
+
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({"unread": unread_count, "items": data})
+
+
+@login_required
+@require_POST
+def api_mark_read(request, notif_id):
+    try:
+        n = Notification.objects.get(id=notif_id)
+    except Notification.DoesNotExist:
+        return JsonResponse({"ok": False}, status=404)
+
+    if n.user_id != request.user.id:
+        return HttpResponseForbidden("forbidden")
+
+    n.is_read = True
+    n.save(update_fields=["is_read"])
+    unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({"ok": True, "unread": unread_count})

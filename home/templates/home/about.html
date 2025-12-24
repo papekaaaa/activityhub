@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  body { background:#f5f6f7 !important; }
+
+  /* HERO (เหลือรูปเดียว = background) */
+  .about-hero{
+    position: relative;
+    height: 520px;
+    border-radius: 18px;
+    overflow: hidden;
+    margin: 18px auto 28px;
+    width: min(1550px, 96vw);
+
+    /* ✅ รูปเดียวพอ (เปลี่ยนไฟล์ตรงนี้ได้) */
+    background: url("{% static 'images/collage.png' %}") center/cover no-repeat;
+  }
+
+  /* ✅ ทับดำชั้นเดียว */
+  .about-hero::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background: rgba(0,0,0,0.55); /* ปรับความเข้มได้ 0.35-0.70 */
+  }
+
+  .about-hero-content{
+    position:absolute;
+    inset:0;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    padding: 42px 48px;
+    color:#fff;
+  }
+  .about-hero-box{ max-width: 860px; }
+
+  .about-hero-title{
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: .5px;
+    margin-bottom: 10px;
+  }
+  .about-hero-lead{
+    font-size: 1.05rem;
+    line-height: 1.85;
+    opacity: .95;
+    margin-bottom: 18px;
+  }
+  .about-hero-cta{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top: 10px;
+  }
+  .about-pill{
+    border: 1.5px solid rgba(255,255,255,.55);
+    color:#fff;
+    background: rgba(255,255,255,.08);
+    padding: 10px 16px;
+    border-radius: 999px;
+    text-decoration:none;
+    font-weight: 700;
+    transition: .15s ease;
+  }
+  .about-pill:hover{
+    transform: translateY(-1px);
+    background: rgba(255,255,255,.14);
+    color:#fff;
+  }
+
+  .stats-bar{
+    width: min(1550px, 96vw);
+    margin: 0 auto 24px;
+    background:#fff;
+    border-radius: 18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    padding: 26px 18px;
+  }
+  .stat-item{ text-align:center; padding: 12px 10px; }
+  .stat-label{
+    font-weight: 700;
+    color:#333;
+    font-size: 1.02rem;
+    margin-bottom: 6px;
+  }
+  .stat-number{
+    font-weight: 900;
+    font-size: 2.1rem;
+    color:#111;
+    line-height: 1.1;
+  }
+  .stat-unit{ color:#666; margin-top: 4px; font-size: .95rem; }
+
+  .about-section{
+    width: min(1550px, 96vw);
+    margin: 0 auto 28px;
+  }
+  .card-soft{
+    background:#fff;
+    border-radius:18px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.06);
+    padding: 26px 26px;
+  }
+  .section-title{
+    font-size: 1.6rem;
+    font-weight: 900;
+    color:#222;
+    margin-bottom: 12px;
+  }
+  .muted{ color:#5b5b5b; line-height: 1.9; }
+
+  .logo-explain{
+    display:grid;
+    grid-template-columns: 1.1fr .9fr;
+    gap: 22px;
+    align-items:center;
+  }
+  .logo-box{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding: 12px;
+  }
+  .logo-box img{
+    width: 260px;
+    max-width: 100%;
+    height:auto;
+    border-radius: 14px;
+    background:#fff;
+  }
+
+  .bullet{ display:flex; gap:10px; margin: 12px 0; }
+  .bullet .dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background:#6f8bff;
+    margin-top: 10px;
+    flex-shrink:0;
+  }
+  .bullet b{ color:#222; }
+
+  @media (max-width: 992px){
+    .about-hero{ height: 520px; }
+    .about-hero-title{ font-size: 2.2rem; }
+    .logo-explain{ grid-template-columns: 1fr; }
+    .about-hero-content{ padding: 34px 22px; }
+  }
+</style>
+
+<!-- HERO -->
+<div class="about-hero">
+  <div class="about-hero-content">
+    <div class="about-hero-box">
+      <div class="about-hero-title">เกี่ยวกับเรา</div>
+      <div class="about-hero-lead">
+        Activity Hub คือพื้นที่รวม “งานอาสา” ที่ค้นหาได้ง่าย เข้าร่วมได้จริง และช่วยให้ผู้จัดกิจกรรมกับจิตอาสาเจอกันเร็วขึ้น
+        เป้าหมายคือทำให้งานอาสาไม่ใช่เรื่องไกลตัว: อยากช่วยก็หาได้, อยากจัดก็ประกาศได้, และทุกอย่างมีระบบรองรับ
+      </div>
+
+      <div class="about-hero-cta">
+        <a class="about-pill" href="{% url 'home:home' %}">ดูหมวดกิจกรรม</a>
+        <a class="about-pill" href="{% url 'home:home' %}?sort=latest">กิจกรรมใหม่ล่าสุด</a>
+        <a class="about-pill" href="{% url 'home:map_nearby' %}">แผนที่กิจกรรม</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="row g-0">
+    <div class="col-md-6 stat-item">
+      <div class="stat-label">จิตอาสาในระบบ</div>
+      <div class="stat-number">{{ volunteer_count }}</div>
+      <div class="stat-unit">คน</div>
+    </div>
+    <div class="col-md-6 stat-item">
+      <div class="stat-label">จำนวนงานอาสาทั้งหมด</div>
+      <div class="stat-number">{{ total_posts_count }}</div>
+      <div class="stat-unit">งาน</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGO -->
+<div class="about-section">
+  <div class="card-soft">
+    <div class="section-title">อธิบายโลโก้ Activity Hub</div>
+
+    <div class="logo-explain">
+      <div>
+        <div class="muted">
+          โลโก้ของเราออกแบบให้สื่อว่า “ความรัก + การเติบโต + การลงมือช่วยกันจริง” และใช้โทนที่ดูอบอุ่นแต่ทันสมัย
+        </div>
+
+        <div class="bullet">
+          <div class="dot"></div>
+          <div>
+            <b>หัวใจสีแดง</b> = แรงจูงใจและความตั้งใจดีของจิตอาสา ช่วยด้วยใจ
+          </div>
+        </div>
+
+        <div class="bullet">
+          <div class="dot"></div>
+          <div>
+            <b>ใบไม้/ต้นอ่อนสีเขียว</b> = การเติบโตของสังคมจากการช่วยกันทำกิจกรรมเล็ก ๆ ให้เกิดผลใหญ่
+          </div>
+        </div>
+
+        <div class="bullet">
+          <div class="dot"></div>
+          <div>
+            <b>ละอองน้ำเล็ก ๆ รอบใบ</b> = “คนหลายคน” ที่มารวมพลัง เป็นคอมมูนิตี้ ไม่ได้ทำคนเดียว
+            หรืออีกนัยคือ น้ำใจเล็ก ๆ ที่รวมกันแล้วสร้างความเปลี่ยนแปลงได้
+          </div>
+        </div>
+
+        <div class="bullet">
+          <div class="dot"></div>
+          <div>
+            <b>วงกลมพื้นหลัง</b> = Hub/ศูนย์กลาง ที่รวมกิจกรรมหลายประเภทไว้ในที่เดียว (ค้นหา-เข้าร่วม-ติดตาม ได้สะดวก)
+          </div>
+        </div>
+      </div>
+
+      <div class="logo-box">
+        <img src="{% static 'images/logo.png' %}" alt="Activity Hub Logo">
+      </div>
+    </div>
+
+    <hr class="my-4">
+
+    <div class="row g-4 align-items-stretch">
+      <div class="col-lg-12">
+        <div class="section-title" style="font-size:1.25rem;">เราทำอะไรให้คุณได้บ้าง</div>
+        <div class="muted">
+          1) ค้นหากิจกรรมตามหมวด/คำค้น/แผนที่<br>
+          2) สมัครเข้าร่วมและติดตามสถานะกิจกรรม<br>
+          3) ผู้จัดสามารถโพสต์กิจกรรม และให้ระบบช่วยกระจายให้คนเห็น<br>
+          4) มีระบบรายงาน/จัดการโดยผู้ดูแล เพื่อความปลอดภัยของคอมมูนิตี้
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

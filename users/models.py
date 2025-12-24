@@ -2,6 +2,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone  # ✅ เพิ่ม (เกี่ยวข้องกับ soft delete)
 
 
 class CustomUserManager(BaseUserManager):
@@ -49,10 +50,23 @@ class User(AbstractUser):
     # --- 2. เพิ่ม Field 'role' ---
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.USER)
 
+    # ✅ (เพิ่ม) Soft Delete
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
+
+    def soft_delete(self):
+        """
+        ✅ ปิดการใช้งาน + mark ว่าถูกลบ (soft delete)
+        """
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.is_active = False
+        self.save(update_fields=["is_deleted", "deleted_at", "is_active"])
 
     def __str__(self):
         return self.email

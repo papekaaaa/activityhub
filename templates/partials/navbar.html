@@ -76,6 +76,30 @@
         align-items: center;
     }
 
+    /* ✅ (เพิ่ม) ปุ่มกระดิ่ง + badge */
+    .notif-btn {
+        position: relative;
+        border: none;
+        background: transparent;
+        padding: 0;
+        display: flex;
+        align-items: center;
+    }
+    #notifBadge {
+        position: absolute;
+        top: -6px;
+        right: -10px;
+        background: #dc3545;
+        color: #fff;
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 999px;
+        display: none;
+        line-height: 1.2;
+        min-width: 18px;
+        text-align: center;
+    }
+
     /* ส่วนโปรไฟล์ */
     .navbar-user {
         display: flex;
@@ -179,8 +203,16 @@
 
     <div class="navbar-right">
         {% if user.is_authenticated %}
-            <!-- แจ้งเตือน (ยังเป็นไอคอนเฉย ๆ) -->
-            <i class="fa-regular fa-bell navbar-icon" title="แจ้งเตือน"></i>
+            <!-- ✅ แจ้งเตือน (กดแล้วเปิด modal) -->
+            <button type="button"
+                    class="notif-btn"
+                    data-bs-toggle="modal"
+                    data-bs-target="#notifModal"
+                    title="แจ้งเตือน"
+                    aria-label="แจ้งเตือน">
+                <i class="fa-regular fa-bell navbar-icon"></i>
+                <span id="notifBadge">0</span>
+            </button>
 
             <!-- ✅ แชท: ลิงก์ไปหน้า inbox -->
             <a href="{% url 'chat:inbox' %}" class="navbar-icon-link" title="แชท">

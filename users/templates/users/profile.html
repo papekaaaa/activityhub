@@ -146,7 +146,15 @@
             <i class="fa-solid fa-plus me-1"></i> สร้างกิจกรรมใหม่
           </a>
 
-        {# ถ้าเป็นการดูโปรไฟล์คนอื่น ให้โชว์ ติดตาม + แชท #}
+          <!-- ✅ เพิ่ม: ปุ่มลบบัญชี (ชั้นที่ 1 เปิด modal) -->
+          <button type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#deleteAccountStep1Modal">
+            <i class="fa-solid fa-user-slash me-1"></i> ลบบัญชีของฉัน
+          </button>
+
+        {# ถ้าเป็นการดูโปรไฟล์คนอื่น ให้โชว์ ติดตาม + แชท + รายงาน #}
         {% else %}
           <button
             type="button"
@@ -159,6 +167,14 @@
           <a href="{% url 'chat:dm_chat' user.id %}" class="btn btn-outline-primary btn-sm">
             <i class="fa-regular fa-comment"></i> แชท
           </a>
+
+          <!-- ✅ ปุ่มรายงานบัญชี -->
+          <button type="button"
+                  class="btn btn-outline-danger btn-sm"
+                  data-bs-toggle="modal"
+                  data-bs-target="#reportUserModal">
+            รายงาน
+          </button>
         {% endif %}
       </div>
     </div>
@@ -270,6 +286,73 @@
   </div>
 
 </div>
+
+<!-- ✅ เพิ่ม: Modal ยืนยันลบบัญชี (ชั้นที่ 1) -->
+{% if request.user.is_authenticated and request.user.id == user.id %}
+<div class="modal fade" id="deleteAccountStep1Modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header">
+        <h5 class="modal-title text-danger fw-bold">ยืนยันการลบบัญชี (ขั้นที่ 1)</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="text-muted">
+          การลบบัญชีจะทำให้:
+          <ul class="mt-2 mb-0">
+            <li>บัญชีถูกปิดการใช้งานและซ่อนข้อมูล</li>
+          </ul>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0">
+          ถ้าไปต่อแล้ว “ขั้นถัดไป” ต้องยืนยันอีกครั้งและกรอกรหัสผ่านก่อนลบจริง
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+
+        <!-- ไปชั้นที่ 2: หน้า confirm + กรอกรหัส -->
+        <a href="{% url 'delete_account_confirm' %}" class="btn btn-danger">
+          ไปต่อ (ยืนยันขั้นที่ 2)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ✅ Modal รายงานบัญชี (แสดงเฉพาะตอนดูโปรไฟล์คนอื่น) -->
+{% if request.user.is_authenticated and request.user.id != user.id %}
+<div class="modal fade" id="reportUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header">
+        <h5 class="modal-title">รายงาน</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form method="POST"
+            action="{% url 'submit_user_report' user.id %}"
+            enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <label class="form-label">เหตุผลในการรายงาน</label>
+          <input type="text" name="reason" class="form-control" required placeholder="Aa">
+
+          <label class="form-label mt-3">แนบรูปภาพ (ไม่บังคับ)</label>
+          <input type="file" name="evidence_image" class="form-control" accept="image/*">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success rounded-pill px-4">ส่ง</button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- Modal ยืนยันการลบ -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">

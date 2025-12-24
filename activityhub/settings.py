@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'activity_register',
     'channels',
     'chat',   
+    'notifications',
     
 ]
 

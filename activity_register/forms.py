@@ -74,7 +74,6 @@ class ActivityReviewForm(forms.ModelForm):
         model = ActivityReview
         fields = ['rating', 'comment', 'image1', 'image2']
         widgets = {
-            # จะใช้ star-rating ฝั่ง frontend เลยซ่อนไว้
             'rating': forms.HiddenInput(),
             'comment': forms.Textarea(attrs={
                 'class': 'form-control',

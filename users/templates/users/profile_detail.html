@@ -155,6 +155,17 @@
            style="width:44px;height:44px;">
           <i class="fa-regular fa-comment"></i>
         </a>
+
+        <!-- ✅ ปุ่มรายงานบัญชี (รายงานจากหน้าโปรไฟล์ของบัญชีนั้นๆ) -->
+        {% if request.user.is_authenticated %}
+        <button type="button"
+                class="btn btn-outline-danger rounded-circle d-flex align-items-center justify-content-center"
+                style="width:44px;height:44px;"
+                data-bs-toggle="modal"
+                data-bs-target="#reportUserModal">
+          <i class="fa-regular fa-flag"></i>
+        </button>
+        {% endif %}
       </div>
       {% endif %}
     </div>
@@ -239,4 +250,35 @@
     </div>
   </div>
 </div>
+
+<!-- ✅ Modal รายงานบัญชี -->
+{% if request.user.is_authenticated and request.user.id != target_user.id %}
+<div class="modal fade" id="reportUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius: 16px;">
+      <div class="modal-header">
+        <h5 class="modal-title">รายงาน</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form method="POST"
+            action="{% url 'submit_user_report' target_user.id %}"
+            enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="modal-body">
+          <label class="form-label">เหตุผลในการรายงาน</label>
+          <input type="text" name="reason" class="form-control" required placeholder="Aa">
+
+          <label class="form-label mt-3">แนบรูปภาพ (ไม่บังคับ)</label>
+          <input type="file" name="evidence_image" class="form-control" accept="image/*">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-success rounded-pill px-4">ส่ง</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}

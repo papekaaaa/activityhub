@@ -1,11 +1,11 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Avg, Q   # ✅ เพิ่ม Q เข้ามาใช้สำหรับค้นหา
+from django.db.models import Avg, Q   # ✅ ใช้สำหรับค้นหา
 from post.models import Post
 from activity_register.models import ActivityReview
 import json
-
+from django.contrib.auth import get_user_model
 
 def index_view(request):
     if request.user.is_authenticated:
@@ -21,6 +21,23 @@ def map_view(request):
 def about_view(request):
     return render(request, 'home/about.html')
 
+def about(request):
+    User = get_user_model()
+
+    volunteer_count = User.objects.filter(is_active=True).count()
+
+    total_posts_count = Post.objects.filter(
+        is_deleted=False,
+        is_hidden=False,
+        status=Post.Status.APPROVED
+    ).count()
+
+    context = {
+        "volunteer_count": f"{volunteer_count:,}",
+        "total_posts_count": f"{total_posts_count:,}",
+    }
+    return render(request, "home/about.html", context)
+
 
 def home_view(request):
     """
@@ -28,8 +45,12 @@ def home_view(request):
     - รองรับการกรองตามหมวดหมู่ (category)
     - รองรับการค้นหา (search) ตามชื่อกิจกรรม / รายละเอียด / สถานที่ / ชื่อผู้จัด
     """
-    # base queryset
-    posts = Post.objects.filter(status=Post.Status.APPROVED).order_by('-event_date')
+    # base queryset (ยังไม่เรียง) ✅ แสดงเฉพาะโพสต์ที่อนุมัติแล้ว และไม่ถูกซ่อน/ลบ
+    posts = Post.objects.filter(
+        status=Post.Status.APPROVED,
+        is_hidden=False,
+        is_deleted=False,
+    )
 
     # หมวดหมู่ทั้งหมดสำหรับ sidebar
     categories = [c[0] for c in Post.CATEGORY_CHOICES]
@@ -52,6 +73,9 @@ def home_view(request):
             Q(organizer__last_name__icontains=search_query)
         ).distinct()
 
+    # ✅ ให้โพสต์ใหม่สุดอยู่บนสุดเสมอ
+    posts = posts.order_by('-created_at')
+
     context = {
         'posts': posts,
         'categories': categories,
@@ -63,7 +87,13 @@ def home_view(request):
 
 def category_view(request):
     category_type = request.GET.get('type')
-    posts = Post.objects.filter(status=Post.Status.APPROVED)
+
+    # ✅ เรียงด้วย created_at เช่นกัน และไม่แสดงโพสต์ที่ซ่อน/ลบ
+    posts = Post.objects.filter(
+        status=Post.Status.APPROVED,
+        is_hidden=False,
+        is_deleted=False,
+    ).order_by('-created_at')
     if category_type:
         posts = posts.filter(category=category_type)
 
@@ -79,7 +109,14 @@ def post_detail_view(request, post_id):
     """
     รายละเอียดกิจกรรม (หน้า home) + สรุปรีวิวเหมือนหน้าใน app post
     """
-    post = get_object_or_404(Post, id=post_id)
+    # ✅ หน้า detail ฝั่ง home ต้องไม่ให้เข้าดูโพสต์ที่ถูกซ่อน/ลบ
+    post = get_object_or_404(
+        Post,
+        id=post_id,
+        status=Post.Status.APPROVED,
+        is_hidden=False,
+        is_deleted=False,
+    )
 
     reviews = (
         ActivityReview.objects
@@ -115,6 +152,8 @@ def _get_events_from_posts():
     """
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
+        is_hidden=False,
+        is_deleted=False,
         map_lat__isnull=False,
         map_lng__isnull=False,
     )

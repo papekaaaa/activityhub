@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% load static %}
 
+{# ปิดไม่ให้แสดง Django messages บนหน้าแชท #}
+{% block messages %}{% endblock %}
+
 {% block content %}
 <style>
   body {
@@ -119,7 +122,6 @@
 
 <div class="container-fluid px-0">
   <div class="chat-wrapper">
-
     <!-- HEADER -->
     <div class="chat-header d-flex align-items-center">
       <button
@@ -199,9 +201,11 @@
 
     <!-- INPUT -->
     <div class="chat-input-area">
-      <form id="chatForm" class="chat-input-box">
+      <form id="chatForm" class="chat-input-box" method="post">
+        {% csrf_token %}
         <input
           id="chatMessageInput"
+          name="content"
           type="text"
           class="form-control"
           placeholder="Aa"
@@ -224,21 +228,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const formEl = document.getElementById('chatForm');
   const inputEl = document.getElementById('chatMessageInput');
 
-  // เลื่อนลงล่างสุดตอนโหลด
   messagesEl.scrollTop = messagesEl.scrollHeight;
 
-  const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-  const socketUrl = `${scheme}://${window.location.host}/ws/chat/${roomId}/`;
-  const chatSocket = new WebSocket(socketUrl);
+  let chatSocket = null;
+  try {
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const socketUrl = `${scheme}://${window.location.host}/ws/chat/${roomId}/`;
+    chatSocket = new WebSocket(socketUrl);
 
-  chatSocket.onmessage = function(e) {
-    const data = JSON.parse(e.data);
-    appendMessage(data);
-  };
+    chatSocket.onmessage = function(e) {
+      const data = JSON.parse(e.data);
+      appendMessage(data);
+    };
 
-  chatSocket.onclose = function(e) {
-    console.error('Chat socket closed unexpectedly');
-  };
+    chatSocket.onclose = function(e) {
+      console.warn('Chat socket closed', e);
+    };
+  } catch (err) {
+    console.warn('Cannot open WebSocket:', err);
+  }
 
   function escapeHtml(text) {
     return text
@@ -276,13 +284,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   formEl.addEventListener('submit', function(e) {
-    e.preventDefault();
     const text = inputEl.value.trim();
-    if (!text || chatSocket.readyState !== WebSocket.OPEN) {
+    if (!text) {
+      e.preventDefault();
       return;
     }
-    chatSocket.send(JSON.stringify({ message: text }));
-    inputEl.value = '';
+
+    if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+      e.preventDefault();
+      chatSocket.send(JSON.stringify({ message: text }));
+      inputEl.value = '';
+    }
   });
 });
 </script>

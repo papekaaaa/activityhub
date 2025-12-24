@@ -66,8 +66,11 @@
 #         return self.title
 
 # post/models.py
+
+
 from django.db import models
 from django.conf import settings  # ✅ รองรับ CustomUser
+
 
 class Post(models.Model):
 
@@ -141,6 +144,10 @@ class Post(models.Model):
     saves = models.ManyToManyField(
         settings.AUTH_USER_MODEL, related_name='saved_posts', blank=True
     )
+
+    # ✅ ฟิลด์สำหรับซ่อน / ลบแบบ soft delete
+    is_hidden = models.BooleanField(default=False, verbose_name="ซ่อนโพสต์")
+    is_deleted = models.BooleanField(default=False, verbose_name="ลบแบบซ่อน")
 
     status = models.CharField(
         max_length=10,
