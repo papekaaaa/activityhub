@@ -9,10 +9,6 @@ from .models import Notification
 
 
 def _get_registration_model():
-    """
-    พยายามหาโมเดล “การสมัครกิจกรรม” โดยไม่ไปเดาชื่อมั่วแบบตายตัว
-    คุณสามารถเปลี่ยนให้ชี้ชื่อจริงได้ภายหลังถ้าต้องการ
-    """
     candidates = [
         ("activity_register", "ActivityRegistration"),
         ("activity_register", "Registration"),
@@ -28,27 +24,58 @@ def _get_registration_model():
     return None
 
 
+def _capacity_status_text(post, reg_count: int | None = None) -> str:
+    """
+    คืนข้อความสถานะความจุ:
+    - ไม่จำกัด (กรณี slots_available <= 0 หรือ None)
+    - เต็มแล้ว / เหลือที่ว่าง
+    """
+    cap = getattr(post, "slots_available", None)
+    if cap is None or cap <= 0:
+        return "กิจกรรมนี้ไม่จำกัดจำนวน"
+
+    if reg_count is None:
+        # ใช้ related_name='registrations' ที่คุณมีอยู่แล้ว
+        try:
+            reg_count = post.registrations.count()
+        except Exception:
+            reg_count = 0
+
+    remaining = cap - reg_count
+    if remaining <= 0:
+        return f"ตอนนี้กิจกรรมเต็มแล้ว (สมัคร {reg_count}/{cap})"
+    return f"ตอนนี้สมัครแล้ว {reg_count}/{cap} เหลือ {remaining} ที่"
+
+
 def _ensure_activity_notifications(user):
     """
-    สร้างแจ้งเตือนตามกติกา:
-    - ผู้สมัคร: เตือนก่อน 1 วัน
-    - ผู้บันทึก: เตือนก่อน 3 วัน (พร้อมข้อความชวนสมัคร)
-    ทำตอนเปิดกระดิ่งก็พอ ไม่ต้องตั้ง cron ก่อน
+    สร้างแจ้งเตือนตามกติกา (lazy: สร้างตอนเปิดกระดิ่ง):
+    1) ผู้บันทึก: เตือนก่อน 3 วัน และ 1 วัน + แนบสถานะที่นั่ง
+    2) ผู้สมัคร: เตือนก่อน 1 วัน
+    3) ผู้สร้างกิจกรรม: เตือนก่อน 2 วัน + แนบสถานะผู้สมัคร/ความจุ
     """
     today = timezone.localdate()
     d1 = today + timedelta(days=1)
+    d2 = today + timedelta(days=2)
     d3 = today + timedelta(days=3)
 
     Post = apps.get_model("post", "Post")
 
-    # 1) Saved reminder (3 วันก่อน)
-    saved_posts = user.saved_posts.filter(
-        event_date__date=d3,
+    base_post_filter = dict(
         is_deleted=False,
         is_hidden=False,
         status="APPROVED",
     )
-    for p in saved_posts:
+
+    # -------------------------
+    # (1) Saved reminders: 3 วันก่อน + 1 วันก่อน
+    # -------------------------
+    saved_posts_3 = user.saved_posts.filter(
+        event_date__date=d3,
+        **base_post_filter,
+    )
+    for p in saved_posts_3:
+        status_text = _capacity_status_text(p)
         Notification.objects.get_or_create(
             user=user,
             post=p,
@@ -56,15 +83,34 @@ def _ensure_activity_notifications(user):
             trigger_date=d3,
             defaults={
                 "title": p.title,
-                "message": "กิจกรรมที่คุณจัดเก็บ ถูกจัดขึ้นในอีก 3 วัน สมัครได้เลย",
-                "link_url": f"/post/{p.id}/",  # ใช้ลิงก์หน้า detail เดิม
+                "message": f"กิจกรรมที่คุณจัดเก็บ จะเริ่มในอีก 3 วัน\n{status_text}",
+                "link_url": f"/post/{p.id}/",
             },
         )
 
-    # 2) Register reminder (1 วันก่อน) — ต้องมีโมเดลสมัครกิจกรรม
+    saved_posts_1 = user.saved_posts.filter(
+        event_date__date=d1,
+        **base_post_filter,
+    )
+    for p in saved_posts_1:
+        status_text = _capacity_status_text(p)
+        Notification.objects.get_or_create(
+            user=user,
+            post=p,
+            kind=Notification.Kind.SAVED_REMINDER,
+            trigger_date=d1,
+            defaults={
+                "title": p.title,
+                "message": f"กิจกรรมที่คุณจัดเก็บ จะเริ่มในอีก 1 วัน\n{status_text}",
+                "link_url": f"/post/{p.id}/",
+            },
+        )
+
+    # -------------------------
+    # (2) Register reminder: 1 วันก่อน (ผู้สมัคร)
+    # -------------------------
     RegModel = _get_registration_model()
     if RegModel:
-        # พยายามเดาคีย์ฟิลด์ที่ใช้กันทั่วไป: user + post
         reg_qs = RegModel.objects.filter(user=user).select_related("post")
         for reg in reg_qs:
             p = getattr(reg, "post", None)
@@ -72,6 +118,7 @@ def _ensure_activity_notifications(user):
                 continue
 
             if timezone.localdate(p.event_date) == d1 and (not p.is_deleted) and (not p.is_hidden) and (p.status == "APPROVED"):
+                status_text = _capacity_status_text(p)
                 Notification.objects.get_or_create(
                     user=user,
                     post=p,
@@ -79,10 +126,38 @@ def _ensure_activity_notifications(user):
                     trigger_date=d1,
                     defaults={
                         "title": p.title,
-                        "message": "กิจกรรมที่คุณสมัครจะถูกจัดขึ้นในอีก 1 วัน",
+                        "message": f"กิจกรรมที่คุณสมัคร จะเริ่มในอีก 1 วัน\n{status_text}",
                         "link_url": f"/post/{p.id}/",
                     },
                 )
+
+    # -------------------------
+    # (3) Owner status reminder: 2 วันก่อน (ผู้สร้างกิจกรรม)
+    # -------------------------
+    owner_posts = Post.objects.filter(
+        organizer=user,
+        event_date__date=d2,
+        **base_post_filter,
+    )
+    for p in owner_posts:
+        # จำนวนผู้สมัคร
+        try:
+            reg_count = p.registrations.count()
+        except Exception:
+            reg_count = 0
+
+        status_text = _capacity_status_text(p, reg_count=reg_count)
+        Notification.objects.get_or_create(
+            user=user,
+            post=p,
+            kind=Notification.Kind.OWNER_STATUS_REMINDER,
+            trigger_date=d2,
+            defaults={
+                "title": p.title,
+                "message": f"อีก 2 วันกิจกรรมจะเริ่ม\nสถานะตอนนี้: {status_text}",
+                "link_url": f"/post/{p.id}/",
+            },
+        )
 
 
 @login_required

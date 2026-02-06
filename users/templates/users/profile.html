@@ -105,22 +105,28 @@
         <img src="{{ profile.cover_picture.url }}" alt="Cover">
       {% endif %}
     </div>
-
+    
     <!-- รูปโปรไฟล์ลอย -->
     <div class="profile-picture-wrapper">
       {% if profile.profile_picture %}
-        <img src="{{ profile.profile_picture.url }}" alt="Profile Picture" class="profile-picture-main">
+        <img src="{{ profile.profile_picture.url }}"
+             onerror="this.onerror=null;this.src='/media/profile_pics/default.webp';"
+             alt="Profile Picture"
+             class="profile-picture-main">
       {% else %}
-        <img src="{% static 'images/default_profile.png' %}" alt="Profile Picture" class="profile-picture-main">
+        <img src="/media/profile_pics/default.webp"
+             alt="Profile Picture"
+             class="profile-picture-main">
       {% endif %}
     </div>
+
 
     <!-- ข้อมูลผู้ใช้ตรงกลาง -->
     <div class="profile-info-main">
       <h3>{{ user.first_name }} {{ user.last_name }}</h3>
       <p class="text-muted mb-1">{{ user.email }}</p>
       <div class="d-flex justify-content-center gap-4 text-muted small">
-        <span><strong>{{ followers_count }}</strong> ผู้ติดตาม</span>
+        <span><strong id="followersCount">{{ followers_count }}</strong> ผู้ติดตาม</span>
         <span><strong>{{ following_count }}</strong> กำลังติดตาม</span>
       </div>
     </div>
@@ -136,6 +142,14 @@
 
         {# ถ้าเป็นโปรไฟล์ของตัวเอง ให้แสดงปุ่มแก้ไข / สร้างกิจกรรม #}
         {% if request.user.id == user.id %}
+
+          {# ✅ เพิ่ม: ไอคอน/ปุ่มไป Dashboard สำหรับ staff/admin/approver #}
+          {% if request.user.is_staff or request.user.is_superuser %}
+            <a href="/approver/" class="btn btn-outline-dark btn-sm" title="Dashboard">
+              <i class="fa-solid fa-gauge-high me-1"></i> Dashboard
+            </a>
+          {% endif %}
+
           <a href="{% url 'profile_edit' %}" class="btn btn-outline-primary btn-sm">
             <i class="fa-solid fa-pen me-1"></i> แก้ไขโปรไฟล์
           </a>
@@ -160,7 +174,8 @@
             type="button"
             class="btn btn-outline-secondary btn-sm rounded-pill px-3 follow-btn"
             data-following="false"
-            data-user-id="{{ user.id }}">
+            data-user-id="{{ user.id }}"
+            data-url="{% url 'follow_toggle' user.id %}">
             + ติดตาม
           </button>
 
@@ -393,22 +408,40 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  // ปุ่มติดตาม (frontend toggle เฉย ๆ เหมือนหน้า feed)
+  // ✅ ปุ่มติดตาม (ยิง backend จริง)
   document.querySelectorAll('.follow-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const following = btn.getAttribute('data-following') === 'true';
-      if (following) {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline-secondary');
-        btn.textContent = '+ ติดตาม';
-        btn.setAttribute('data-following', 'false');
-      } else {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url || (btn.dataset.userId ? `/user/profile/${btn.dataset.userId}/follow/` : null);
+      if (!url) return;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': window.CSRF_TOKEN,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const isFollowing = data.is_following === true;
+
+      if (isFollowing) {
         btn.classList.remove('btn-outline-secondary');
         btn.classList.add('btn-primary');
         btn.textContent = 'กำลังติดตาม';
         btn.setAttribute('data-following', 'true');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+        btn.textContent = '+ ติดตาม';
+        btn.setAttribute('data-following', 'false');
       }
-      // ถ้าจะทำ follow จริง ให้ยิง fetch ไปที่ view เหมือนหน้า home ได้
+
+      const followersEl = document.getElementById('followersCount');
+      if (followersEl && typeof data.followers_count !== 'undefined') {
+        followersEl.textContent = data.followers_count;
+      }
     });
   });
 });

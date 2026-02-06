@@ -67,7 +67,6 @@
 
 # post/models.py
 
-
 from django.db import models
 from django.conf import settings  # ✅ รองรับ CustomUser
 
@@ -163,3 +162,14 @@ class Post(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"
+
+    # ✅ helper เล็กน้อย (ไม่กระทบที่อื่น)
+    def active_registrations_count(self):
+        # ActivityRegistration มี status เพิ่มในโค้ดด้านล่าง
+        try:
+            return self.registrations.filter(status="ACTIVE").count()
+        except Exception:
+            return self.registrations.count()
+
+    def is_full(self):
+        return self.active_registrations_count() >= self.slots_available

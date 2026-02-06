@@ -6,7 +6,6 @@ app_name = 'home'
 urlpatterns = [
     path('', views.index_view, name='index'),
     path('home/', views.home_view, name='home'),
-    path('post/<int:post_id>/', views.post_detail_view, name='post_detail'),
 
     # แผนที่รวมทุกกิจกรรม (ดูอย่างเดียว – ใช้ในเมนูก่อนล็อกอิน)
     path('map/', views.public_map_view, name='map'),

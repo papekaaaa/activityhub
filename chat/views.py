@@ -1,10 +1,20 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from django.utils.timezone import localtime
+
+from zoneinfo import ZoneInfo  # ✅ เพิ่ม
 
 from users.models import User
 from post.models import Post
 from .models import ChatRoom, ChatMembership, ChatMessage
+
+BKK_TZ = ZoneInfo("Asia/Bangkok")  # ✅ เพิ่ม
 
 
 @login_required
@@ -62,7 +72,8 @@ def inbox_view(request):
         if last_msg:
             content = last_msg.content or ''
             last_text = content[:60] + ('…' if len(content) > 60 else '')
-            last_time = last_msg.created_at
+            # ✅ ให้ last_time เป็นเวลาไทยด้วย (กันหน้า inbox เพี้ยน)
+            last_time = localtime(last_msg.created_at, timezone=BKK_TZ)
         else:
             last_text = ''
             last_time = None
@@ -78,7 +89,6 @@ def inbox_view(request):
             'is_group': (room.room_type == 'GROUP'),
         })
 
-    # เรียงตามเวลาข้อความล่าสุด (ใช้ timestamp เป็น float ทั้งหมดเลี่ยง datetime/int)
     rooms_data.sort(
         key=lambda r: r['last_time'].timestamp() if r['last_time'] else 0,
         reverse=True
@@ -111,14 +121,16 @@ def activity_chat_view(request, post_id):
         defaults={'is_admin': False},
     )
 
-    # รับ POST จากฟอร์มส่งข้อความแล้วบันทึก
+    # รองรับ POST แบบเดิม (ข้อความล้วน) เผื่อ fallback
     if request.method == "POST":
         text = request.POST.get("content", "").strip()
-        if text:
+        file = request.FILES.get("file")
+        if text or file:
             ChatMessage.objects.create(
                 room=room,
                 sender=request.user,
                 content=text,
+                attachment=file
             )
         return redirect('chat:activity_chat', post_id=post.id)
 
@@ -134,7 +146,7 @@ def activity_chat_view(request, post_id):
             'post': post,
             'other_user': None,
             'is_group': True,
-            'messages': messages_qs,
+            'chat_messages': messages_qs,  # ✅ เปลี่ยนชื่อกันชนกับ Django messages
         },
     )
 
@@ -148,24 +160,20 @@ def dm_chat_view(request, user_id):
     other_user = get_object_or_404(User, id=user_id)
 
     if other_user == request.user:
-        # ไม่ต้อง DM ตัวเอง กลับไปหน้าโปรไฟล์เราแทน
         return redirect('profile')
 
-    # หา room_id ที่เราสังกัดอยู่
     my_room_ids = set(
         ChatMembership.objects.filter(
             user=request.user
         ).values_list('room_id', flat=True)
     )
 
-    # หา room_id ที่อีกฝั่งสังกัดอยู่
     other_room_ids = set(
         ChatMembership.objects.filter(
             user=other_user
         ).values_list('room_id', flat=True)
     )
 
-    # ห้องที่ทั้งสองคนเป็นสมาชิก ร่วมกับ room_type='DM'
     common_ids = list(my_room_ids & other_room_ids)
     room = None
     if common_ids:
@@ -185,14 +193,16 @@ def dm_chat_view(request, user_id):
             ChatMembership(room=room, user=other_user, is_admin=False),
         ])
 
-    # รับ POST จากฟอร์มส่งข้อความแล้วบันทึก
+    # รองรับ POST แบบเดิม (ข้อความล้วน) เผื่อ fallback
     if request.method == "POST":
         text = request.POST.get("content", "").strip()
-        if text:
+        file = request.FILES.get("file")
+        if text or file:
             ChatMessage.objects.create(
                 room=room,
                 sender=request.user,
                 content=text,
+                attachment=file
             )
         return redirect('chat:dm_chat', user_id=other_user.id)
 
@@ -208,6 +218,57 @@ def dm_chat_view(request, user_id):
             'post': None,
             'other_user': other_user,
             'is_group': False,
-            'messages': messages_qs,
+            'chat_messages': messages_qs,  # ✅ เปลี่ยนชื่อกันชน
         },
     )
+
+
+@login_required
+@require_POST
+def upload_message_view(request, room_id):
+    """
+    ✅ อัปโหลดรูป/ไฟล์ผ่าน HTTP แล้ว broadcast ไปห้องแชทผ่าน Channels
+    """
+    room = get_object_or_404(ChatRoom, id=room_id)
+
+    # เช็คสมาชิกห้อง (กันยิงมั่ว)
+    if not ChatMembership.objects.filter(room=room, user=request.user).exists():
+        return JsonResponse({"ok": False, "error": "not_member"}, status=403)
+
+    text = (request.POST.get("content") or "").strip()
+    file = request.FILES.get("file")
+
+    if not text and not file:
+        return JsonResponse({"ok": False, "error": "empty"}, status=400)
+
+    msg = ChatMessage.objects.create(
+        room=room,
+        sender=request.user,
+        content=text,
+        attachment=file
+    )
+
+    # ตรวจว่าเป็นรูปไหม
+    is_image = False
+    if msg.attachment:
+        is_image = msg.is_image()
+
+    # ✅ บังคับเวลาไทย
+    dt_local = localtime(msg.created_at, timezone=BKK_TZ)
+
+    payload = {
+        "type": "chat_message",  # ✅ ให้ตรงกับ handler ใน consumer
+        "message": msg.content or "",
+        "sender_id": request.user.id,
+        "sender_name": request.user.get_full_name() or request.user.username,
+        "created_at": dt_local.strftime("%d/%m/%Y %H:%M"),  # ✅ เวลาไทย
+        "created_at_iso": dt_local.isoformat(),             # ✅ เผื่อ JS ใช้
+        "file_url": msg.attachment.url if msg.attachment else "",
+        "file_name": (msg.attachment.name.split("/")[-1] if msg.attachment else ""),
+        "is_image": is_image,
+    }
+
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(f"chat_{room_id}", payload)
+
+    return JsonResponse({"ok": True})

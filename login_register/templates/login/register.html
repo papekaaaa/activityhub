@@ -30,10 +30,10 @@
   .register-modal {
     background-color: #fff;
     border-radius: 20px;
-    padding: 60px 40px;              /* ช่องว่างภายในมากขึ้น */
+    padding: 60px 40px;
     width: 100%;
-    max-width: 500px;              /* กล่องกว้างขึ้นเล็กน้อย */
-    min-height: 860px;         /* ✅ กล่องยาวขึ้น */
+    max-width: 500px;
+    min-height: 860px;
     position: relative;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     display: flex;
@@ -117,6 +117,11 @@
     background-color: #3867d6;
   }
 
+  .register-button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
   /* กล่อง Checkbox */
   .checkbox-container {
     display: flex;
@@ -143,6 +148,12 @@
     text-decoration: underline;
   }
 
+  .consent-error {
+    color: #dc2626;
+    font-size: 0.95rem;
+    margin-top: -4px;
+  }
+
   /* ลิงก์กลับไปเข้าสู่ระบบ */
   .login-link {
     text-align: center;
@@ -161,13 +172,11 @@
     text-decoration: underline;
   }
 
-  /* เอฟเฟกต์ตอน overlay แสดง */
   @keyframes fadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
   }
 
-  /* สำหรับจอมือถือ */
   @media (max-width: 500px) {
     .register-modal {
       margin: 20px;
@@ -184,6 +193,7 @@
 
     <form method="POST" novalidate>
       {% csrf_token %}
+
       <label for="id_email">อีเมล</label>
       {{ form.email }}
 
@@ -193,15 +203,26 @@
       <label for="id_password2">รหัสผ่านอีกครั้ง</label>
       {{ form.password2 }}
 
+      {% if consent_error %}
+        <div class="consent-error">{{ consent_error }}</div>
+      {% endif %}
+
+      <!-- ✅ แยกเป็น 2 อัน + มี name ส่งไป backend -->
       <div class="checkbox-container">
-        <input type="checkbox" id="privacy" required>
-        <label for="privacy">
-          ฉันยินยอมต่อข้อตกลงและนโยบายความเป็นส่วนตัว 
-          (<a href="#">Privacy Notice</a>)
+        <input type="checkbox" id="acceptTerms" name="accept_terms" required>
+        <label for="acceptTerms">
+          ยอมรับ <a href="{% url 'terms' %}" target="_blank">ข้อตกลงและเงื่อนไข</a> การเป็นสมาชิก
         </label>
       </div>
 
-      <button type="submit" class="register-button">ดำเนินการต่อ</button>
+      <div class="checkbox-container">
+        <input type="checkbox" id="acceptPrivacy" name="accept_privacy" required>
+        <label for="acceptPrivacy">
+          ยอมรับ <a href="{% url 'privacy' %}" target="_blank">ประกาศความเป็นส่วนตัว (Privacy Notice)</a>
+        </label>
+      </div>
+
+      <button type="submit" id="registerBtn" class="register-button" disabled>ดำเนินการต่อ</button>
     </form>
 
     <div class="login-link">
@@ -209,4 +230,21 @@
     </div>
   </div>
 </div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const t = document.getElementById("acceptTerms");
+    const p = document.getElementById("acceptPrivacy");
+    const btn = document.getElementById("registerBtn");
+    if (!t || !p || !btn) return;
+
+    function sync() {
+      btn.disabled = !(t.checked && p.checked);
+    }
+
+    t.addEventListener("change", sync);
+    p.addEventListener("change", sync);
+    sync();
+  });
+</script>
 {% endblock %}

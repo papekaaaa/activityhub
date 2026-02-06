@@ -9,4 +9,8 @@ urlpatterns = [
 
     # ✅ เพิ่ม: ลบบัญชีตัวเอง
     path('profile/delete-account/', views.delete_account_confirm_view, name='delete_account_confirm'),
+
+    # ✅ เพิ่ม: เปลี่ยนรหัสผ่าน (ยืนยัน 2 ชั้น)
+    path('profile/change-password/', views.password_change_confirm_view, name='password_change_confirm'),
+    path('profile/change-password/new/', views.password_change_view, name='password_change'),
 ]

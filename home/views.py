@@ -1,11 +1,13 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import Avg, Q   # ✅ ใช้สำหรับค้นหา
+from django.db.models import Avg, Q, Count, Exists, OuterRef, Value, BooleanField
 from post.models import Post
 from activity_register.models import ActivityReview
 import json
 from django.contrib.auth import get_user_model
+from users.models import Profile  # ✅ เพิ่มเพื่อเช็คสถานะติดตาม
+
 
 def index_view(request):
     if request.user.is_authenticated:
@@ -14,12 +16,12 @@ def index_view(request):
 
 
 def map_view(request):
-    # หน้านี้ถ้าไม่ได้ใช้แล้ว สามารถลบได้ แต่ยังคงไว้เผื่อเรียกจากที่อื่น
     return render(request, 'home/map.html')
 
 
 def about_view(request):
     return render(request, 'home/about.html')
+
 
 def about(request):
     User = get_user_model()
@@ -45,25 +47,37 @@ def home_view(request):
     - รองรับการกรองตามหมวดหมู่ (category)
     - รองรับการค้นหา (search) ตามชื่อกิจกรรม / รายละเอียด / สถานที่ / ชื่อผู้จัด
     """
-    # base queryset (ยังไม่เรียง) ✅ แสดงเฉพาะโพสต์ที่อนุมัติแล้ว และไม่ถูกซ่อน/ลบ
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
         is_hidden=False,
         is_deleted=False,
     )
 
-    # หมวดหมู่ทั้งหมดสำหรับ sidebar
+    # ✅ จำนวนรีวิวต่อโพสต์ (reverse name = activity_reviews)
+    posts = posts.annotate(review_count=Count('activity_reviews', distinct=True))
+
+    # ✅ สถานะติดตาม (เชื่อมกับ Profile.followers)
+    if request.user.is_authenticated:
+        my_profile = getattr(request.user, "profile", None)
+        if my_profile:
+            follow_qs = Profile.objects.filter(
+                user_id=OuterRef('organizer_id'),
+                followers=my_profile
+            )
+            posts = posts.annotate(is_following=Exists(follow_qs))
+        else:
+            posts = posts.annotate(is_following=Value(False, output_field=BooleanField()))
+    else:
+        posts = posts.annotate(is_following=Value(False, output_field=BooleanField()))
+
     categories = [c[0] for c in Post.CATEGORY_CHOICES]
 
-    # รับค่าจาก query string
     selected_category = request.GET.get('category')
     search_query = request.GET.get('search', '').strip()
 
-    # กรองตามหมวดหมู่ (ถ้ามี)
     if selected_category:
         posts = posts.filter(category=selected_category)
 
-    # กรองตามคำค้นหา (ถ้ามี)
     if search_query:
         posts = posts.filter(
             Q(title__icontains=search_query) |
@@ -73,7 +87,6 @@ def home_view(request):
             Q(organizer__last_name__icontains=search_query)
         ).distinct()
 
-    # ✅ ให้โพสต์ใหม่สุดอยู่บนสุดเสมอ
     posts = posts.order_by('-created_at')
 
     context = {
@@ -88,12 +101,31 @@ def home_view(request):
 def category_view(request):
     category_type = request.GET.get('type')
 
-    # ✅ เรียงด้วย created_at เช่นกัน และไม่แสดงโพสต์ที่ซ่อน/ลบ
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
         is_hidden=False,
         is_deleted=False,
-    ).order_by('-created_at')
+    )
+
+    # ✅ จำนวนรีวิวต่อโพสต์
+    posts = posts.annotate(review_count=Count('activity_reviews', distinct=True))
+
+    # ✅ สถานะติดตาม
+    if request.user.is_authenticated:
+        my_profile = getattr(request.user, "profile", None)
+        if my_profile:
+            follow_qs = Profile.objects.filter(
+                user_id=OuterRef('organizer_id'),
+                followers=my_profile
+            )
+            posts = posts.annotate(is_following=Exists(follow_qs))
+        else:
+            posts = posts.annotate(is_following=Value(False, output_field=BooleanField()))
+    else:
+        posts = posts.annotate(is_following=Value(False, output_field=BooleanField()))
+
+    posts = posts.order_by('-created_at')
+
     if category_type:
         posts = posts.filter(category=category_type)
 
@@ -109,7 +141,6 @@ def post_detail_view(request, post_id):
     """
     รายละเอียดกิจกรรม (หน้า home) + สรุปรีวิวเหมือนหน้าใน app post
     """
-    # ✅ หน้า detail ฝั่ง home ต้องไม่ให้เข้าดูโพสต์ที่ถูกซ่อน/ลบ
     post = get_object_or_404(
         Post,
         id=post_id,
@@ -143,13 +174,7 @@ def post_detail_view(request, post_id):
     return render(request, 'home/post_detail.html', context)
 
 
-# ---------------- MAP HELPERS ----------------
-
 def _get_events_from_posts():
-    """
-    ดึงโพสต์ที่มีพิกัด map_lat / map_lng และแปลงเป็น list ของ dict
-    สำหรับส่งไปใช้ใน JavaScript
-    """
     posts = Post.objects.filter(
         status=Post.Status.APPROVED,
         is_hidden=False,
@@ -178,27 +203,17 @@ def _get_events_from_posts():
 
 
 def public_map_view(request):
-    """
-    แผนที่กิจกรรม (หน้า public ก่อนล็อกอิน)
-    - แสดงหมุดทุกกิจกรรมที่มีพิกัด
-    - ไม่ใช้ geolocation, ดูได้อย่างเดียว
-    """
     events = _get_events_from_posts()
 
     context = {
         "events_json": json.dumps(events, cls=DjangoJSONEncoder, ensure_ascii=False),
-        "enable_geolocation": False,  # หน้า public ไม่ใช้ geolocation
+        "enable_geolocation": False,
     }
     return render(request, "home/map.html", context)
 
 
 @login_required
 def nearby_map_view(request):
-    """
-    แผนที่กิจกรรมใกล้ตัว (ต้องล็อกอิน)
-    - ใช้ geolocation จาก browser
-    - filter เฉพาะกิจกรรมในรัศมี ~30km ที่ฝั่ง JS
-    """
     events = _get_events_from_posts()
 
     context = {

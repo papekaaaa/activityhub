@@ -5,6 +5,18 @@
 <div class="d-flex justify-content-center mt-4 mb-5">
   <div class="register-card">
 
+    {# ✅ เพิ่ม: แจ้งเตือนวันเดียวกัน/เวลาชน #}
+    {% if conflict_post %}
+      <div class="alert alert-danger small">
+        คุณมีกิจกรรมอีกอันที่เวลาเดียวกันแล้ว: <strong>{{ conflict_post.title }}</strong><br>
+        กรุณายกเลิกกิจกรรมเดิม หรือเลือกเพียงกิจกรรมเดียว
+      </div>
+    {% elif same_day_post %}
+      <div class="alert alert-warning small">
+        แจ้งเตือน: ในวันเดียวกันคุณมีกิจกรรมอื่นอยู่แล้ว: <strong>{{ same_day_post.title }}</strong>
+      </div>
+    {% endif %}
+
     <!-- หัวเรื่อง -->
     <div class="register-header d-flex align-items-center mb-3">
       <button type="button" class="btn btn-link text-dark p-0 me-3"
@@ -172,13 +184,18 @@
 
       <!-- ปุ่มยืนยัน -->
       <div class="text-center mt-4">
-        <button type="submit" class="btn btn-register px-5">
+        <button type="submit" class="btn btn-register px-5" {% if conflict_post %}disabled{% endif %}>
           {% if edit_mode %}
             บันทึกข้อมูล
           {% else %}
             ยืนยันการสมัคร
           {% endif %}
         </button>
+        {% if conflict_post %}
+          <div class="small text-muted mt-2">
+            ปุ่มถูกปิดไว้เพราะเวลาชนกับกิจกรรมอื่น
+          </div>
+        {% endif %}
       </div>
     </form>
 
@@ -210,9 +227,7 @@
 </div>
 
 <style>
-  body {
-    background-color: #f0f4ff !important;
-  }
+  body { background-color: #f0f4ff !important; }
 
   .register-card {
     background-color: #f4f7ff;
@@ -223,9 +238,7 @@
     box-shadow: 0 8px 20px rgba(0,0,0,0.1);
   }
 
-  .register-header h4 {
-    font-size: 1.3rem;
-  }
+  .register-header h4 { font-size: 1.3rem; }
 
   .btn-register {
     background-color: #60c58b;
@@ -235,11 +248,7 @@
     padding-top: 0.6rem;
     padding-bottom: 0.6rem;
   }
-
-  .btn-register:hover {
-    background-color: #4caf73;
-    color: #fff;
-  }
+  .btn-register:hover { background-color: #4caf73; color: #fff; }
 
   .success-overlay {
     position: fixed;
@@ -272,16 +281,10 @@
     border-radius: 999px;
     font-weight: 600;
   }
-
-  .btn-join-chat:hover {
-    background-color: #a4e6b1;
-  }
+  .btn-join-chat:hover { background-color: #a4e6b1; }
 
   @media (max-width: 768px) {
-    .register-card {
-      padding: 1.5rem 1.5rem;
-      border-radius: 20px;
-    }
+    .register-card { padding: 1.5rem 1.5rem; border-radius: 20px; }
   }
 </style>
 
@@ -304,7 +307,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // กด "เข้าร่วมแชทกลุ่ม" ให้เด้งไปหน้าแชท
   if (chatUrl) {
     joinBtn.addEventListener('click', function () {
       window.location.href = chatUrl;

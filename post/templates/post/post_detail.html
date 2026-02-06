@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+  .avatar-circle-40 {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+
+  #registrantModal .modal-dialog { max-width: 1100px; }
+  #registrantModal .table-responsive { max-height: 60vh; }
+  #registrantModal thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 1;
+  }
+  #registrantModal .table th,
+  #registrantModal .table td {
+    white-space: nowrap;
+    font-size: 0.9rem;
+  }
+
+  .hide-comment-on-this-page { display: none !important; }
+
+  .pill {
+    border-radius: 999px;
+    padding: .45rem 1rem;
+    font-weight: 600;
+    font-size: .95rem;
+  }
+</style>
+
+<div class="container-fluid px-4 mt-3">
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+
+      <a href="{% url 'home:home' %}" class="text-decoration-none text-dark d-inline-flex align-items-center mb-3">
+        <i class="fa-solid fa-arrow-left me-2"></i> กลับหน้าหลัก
+      </a>
+
+      <div class="bg-white shadow-sm rounded-4 overflow-hidden position-relative">
+
+        {% if post.image %}
+        <div class="w-100" style="max-height: 340px; overflow: hidden;">
+          <img
+            src="{{ post.image.url }}"
+            alt="{{ post.title }}"
+            class="w-100"
+            style="object-fit: cover;"
+          />
+        </div>
+        {% endif %}
+
+        <div class="p-4">
+
+          <div class="d-flex justify-content-between align-items-start mb-3">
+            <div class="pe-3">
+              <h3 class="fw-bold mb-2">{{ post.title }}</h3>
+              <p class="mb-1 text-muted">
+                📅 {{ post.event_date|date:"j F Y" }}
+              </p>
+              <p class="mb-1 text-muted">
+                📍 {{ post.location }}
+              </p>
+            </div>
+
+            <div class="text-end">
+              <div class="d-flex align-items-center justify-content-end mb-1">
+                {% if post.organizer.profile.profile_picture %}
+                  <img
+                    src="{{ post.organizer.profile.profile_picture.url }}"
+                    class="avatar-circle-40 me-2"
+                    alt="{{ post.organizer.get_full_name }}"
+                  />
+                {% else %}
+                  <img
+                    src="/media/profile_pics/default.webp"
+                    class="avatar-circle-40 me-2"
+                    alt="Default profile"
+                  />
+                {% endif %}
+                <div class="text-start">
+                  <div class="fw-semibold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</div>
+                  <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+                </div>
+              </div>
+
+              {# ✅ ใช้ active_reg_count / is_full จาก view #}
+              <div class="small text-muted">
+                เปิดรับ {{ active_reg_count }}/
+                {% if post.slots_available == 0 %}
+                  ไม่จำกัด
+                {% else %}
+                  {{ post.slots_available }}
+                {% endif %}
+
+                {% if active_reg_count > 0 %}
+                  <button
+                    type="button"
+                    class="btn btn-link btn-sm p-0 ms-2 align-baseline"
+                    data-bs-toggle="modal"
+                    data-bs-target="#registrantModal"
+                  >
+                    ดูรายชื่อผู้สมัคร ({{ active_reg_count }})
+                  </button>
+                {% endif %}
+              </div>
+
+              {% if is_full %}
+                <div class="mt-1">
+                  <span class="badge bg-danger">เต็มแล้ว</span>
+                </div>
+              {% endif %}
+              {% if not post.allow_register %}
+                <div class="mt-1">
+                  <span class="badge bg-secondary">ปิดรับสมัคร</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <p class="mb-0">
+              {{ post.description|linebreaksbr }}
+            </p>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mb-3 small text-muted">
+            <span>
+              {% if post.fee %}
+                ค่าใช้จ่าย: {{ post.fee }} บาท
+              {% else %}
+                ไม่เสียค่าใช้จ่าย
+              {% endif %}
+            </span>
+            <span>หมวดหมู่: {{ post.category }}</span>
+          </div>
+
+          <a href="{% url 'chat:activity_chat' post.id %}"
+            class="btn btn-outline-primary rounded-pill px-4 fw-semibold">
+            แชทกิจกรรม
+          </a>
+
+          <div class="d-flex justify-content-between align-items-center mt-2">
+
+            <button
+              type="button"
+              class="btn btn-link text-dark p-0 d-inline-flex align-items-center"
+              id="openScheduleBtn"
+            >
+              <i class="fa-solid fa-arrow-left me-2"></i> กำหนดการ
+            </button>
+
+            <div class="d-flex align-items-center gap-3">
+
+              {% if user.is_authenticated %}
+              <button
+                type="button"
+                class="btn btn-link p-0 like-btn"
+                data-id="{{ post.id }}"
+                aria-label="like"
+              >
+                {% if user in post.likes.all %}
+                  <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
+                {% else %}
+                  <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
+                {% endif %}
+              </button>
+
+              <a href="#comments" class="text-dark hide-comment-on-this-page" aria-label="comments">
+                <i class="fa-regular fa-comment fs-5"></i>
+              </a>
+
+              <button
+                type="button"
+                class="btn btn-link p-0 save-btn"
+                data-id="{{ post.id }}"
+                aria-label="save"
+              >
+                {% if user in post.saves.all %}
+                  <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
+                {% else %}
+                  <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
+                {% endif %}
+              </button>
+              {% endif %}
+
+              {# ✅ ปุ่มสมัคร/สถานะสมัคร #}
+              {% if user.is_authenticated %}
+                {% if my_reg and my_reg.status == "ACTIVE" %}
+                  <span class="badge bg-success">สมัครไปแล้ว</span>
+
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger rounded-pill px-4 fw-semibold"
+                    data-bs-toggle="modal"
+                    data-bs-target="#cancelModal"
+                  >
+                    ยกเลิกกิจกรรม
+                  </button>
+
+                {% elif my_reg and my_reg.status == "CANCEL_PENDING" %}
+                  <span class="badge bg-warning text-dark">รอยืนยันยกเลิก</span>
+
+                  <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold">
+                      ยกเลิกการดำเนินการ (Undo)
+                    </button>
+                  </form>
+
+                {% elif my_reg and my_reg.status == "CANCELED" %}
+                  <span class="badge bg-secondary">ยกเลิกแล้ว</span>
+
+                {% else %}
+                  {% if post.allow_register and not is_full %}
+                    <a
+                      href="{% url 'activity_register:register_activity' post.id %}"
+                      class="btn btn-success rounded-pill px-4 fw-semibold"
+                    >
+                      สมัคร
+                    </a>
+                  {% elif is_full %}
+                    <button type="button" class="btn btn-secondary rounded-pill px-4 fw-semibold" disabled>
+                      เต็มแล้ว
+                    </button>
+                  {% else %}
+                    <button type="button" class="btn btn-secondary rounded-pill px-4 fw-semibold" disabled>
+                      ปิดรับสมัครแล้ว
+                    </button>
+                  {% endif %}
+                {% endif %}
+              {% else %}
+                {% if post.allow_register and not is_full %}
+                  <a
+                    href="{% url 'activity_register:register_activity' post.id %}"
+                    class="btn btn-success rounded-pill px-4 fw-semibold"
+                  >
+                    สมัคร
+                  </a>
+                {% endif %}
+              {% endif %}
+            </div>
+          </div>
+
+          <div id="comments" class="mt-4 border-top pt-3">
+            <h6 class="fw-bold mb-2">รีวิวจากผู้เข้าร่วมกิจกรรม</h6>
+
+            {% if review_count > 0 %}
+              <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= avg_rating_int %}
+                      <i class="fa-solid fa-star text-warning"></i>
+                    {% else %}
+                      <i class="fa-regular fa-star text-warning"></i>
+                    {% endif %}
+                  {% endfor %}
+                </div>
+                <div class="small text-muted">
+                  คะแนนเฉลี่ย {{ avg_rating|floatformat:1 }} จาก {{ review_count }} รีวิว
+                </div>
+              </div>
+
+              {% for review in reviews %}
+                <div class="d-flex mb-3">
+                  <div class="me-3">
+                    {% if review.user.profile.profile_picture %}
+                      <img src="{{ review.user.profile.profile_picture.url }}"
+                           class="avatar-circle-40"
+                           alt="{{ review.user.get_full_name }}">
+                    {% else %}
+                      <img src="/media/profile_pics/default.webp"
+                           class="avatar-circle-40"
+                           alt="Default profile">
+                    {% endif %}
+                  </div>
+
+                  <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between">
+                      <div>
+                        <strong>{{ review.user.first_name }} {{ review.user.last_name }}</strong>
+                        <div class="small text-muted">
+                          {{ review.created_at|date:"j M Y H:i" }}
+                        </div>
+                      </div>
+                      <div>
+                        {% for i in "12345" %}
+                          {% if forloop.counter <= review.rating %}
+                            <i class="fa-solid fa-star text-warning"></i>
+                          {% else %}
+                            <i class="fa-regular fa-star text-warning"></i>
+                          {% endif %}
+                        {% endfor %}
+                      </div>
+                    </div>
+
+                    {% if review.comment %}
+                      <p class="mb-2 mt-1">{{ review.comment|linebreaksbr }}</p>
+                    {% endif %}
+
+                    {% if review.image1 or review.image2 %}
+                      <div class="d-flex gap-2 mb-1">
+                        {% if review.image1 %}
+                          <img src="{{ review.image1.url }}" class="rounded"
+                               style="width: 90px; height: 90px; object-fit: cover;">
+                        {% endif %}
+                        {% if review.image2 %}
+                          <img src="{{ review.image2.url }}" class="rounded"
+                               style="width: 90px; height: 90px; object-fit: cover;">
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            {% else %}
+              <p class="text-muted small mb-0">
+                ยังไม่มีรีวิวสำหรับกิจกรรมนี้
+              </p>
+            {% endif %}
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{# ✅ Modal ยกเลิกกิจกรรม (เลือกเหตุผล) #}
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4">
+      <div class="modal-header border-0 pb-2">
+        <h5 class="modal-title fw-semibold">ยกเลิกการเข้าร่วมกิจกรรม</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+        <div class="small text-muted mb-2">
+          หมายเหตุ: ยกเลิกได้ก่อน 1 วันก่อนถึงวันเริ่มกิจกรรม (ระบบจะตรวจสอบให้)
+        </div>
+
+        <form method="post" action="{% url 'activity_register:cancel_activity' post.id %}" id="cancelForm">
+          {% csrf_token %}
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="reason" id="reason1" value="NOT_AVAILABLE" required>
+            <label class="form-check-label" for="reason1">ไม่สะดวก วัน/เวลา ของกิจกรรม</label>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="reason" id="reason2" value="HEALTH" required>
+            <label class="form-check-label" for="reason2">มีปัญหาสุขภาพกระทันหัน</label>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="reason" id="reason3" value="OTHER" required>
+            <label class="form-check-label" for="reason3">อื่นๆระบุ</label>
+          </div>
+
+          <div class="mb-3">
+            <input type="text" class="form-control" name="other" id="cancelOther" placeholder="ระบุเหตุผลเพิ่มเติม (ถ้าเลือกอื่นๆ)">
+            <div class="form-text">ถ้าไม่เลือก “อื่นๆ” ช่องนี้เว้นว่างได้</div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">ย้อนกลับ</button>
+            <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">ยืนยันยกเลิก</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY แสดงกำหนดการ -->
+<div
+  id="scheduleModal"
+  class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center"
+  style="background: rgba(0,0,0,0.35); z-index: 1050;"
+>
+  <div class="bg-white rounded-4 shadow-lg p-4"
+       style="max-width: 780px; width: 96%; max-height: 90vh; overflow-y: auto; position: relative;">
+
+    <button
+      type="button"
+      class="btn-close position-absolute"
+      style="top: 14px; right: 18px;"
+      id="closeScheduleBtn"
+      aria-label="Close"
+    ></button>
+
+    <div class="d-flex align-items-center mb-3">
+      <button
+        type="button"
+        class="btn btn-link text-dark p-0 me-2"
+        id="closeScheduleBack"
+      >
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <h5 class="fw-bold mb-0">กำหนดการกิจกรรม</h5>
+    </div>
+
+    {% if post.schedule %}
+      <div class="mb-3 text-center">
+        <img
+          src="{{ post.schedule.url }}"
+          alt="กำหนดการกิจกรรม"
+          class="img-fluid rounded"
+        />
+      </div>
+
+      <div class="text-center mt-2">
+        <a href="{{ post.schedule.url }}" class="btn btn-outline-secondary btn-sm" download>
+          ดาวน์โหลดกำหนดการ
+        </a>
+      </div>
+    {% else %}
+      <p class="text-muted small mb-0">
+        ยังไม่มีไฟล์กำหนดการสำหรับกิจกรรมนี้
+      </p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade" id="registrantModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content border-0 rounded-4">
+      <div class="modal-header border-0 pb-2">
+        <h5 class="modal-title fw-semibold">รายชื่อผู้สมัครกิจกรรม</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="modal-body pt-0">
+        <div class="text-muted small mb-2">
+          รวม {{ active_reg_count }} คน
+        </div>
+
+        {% if active_reg_count %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th scope="col" style="width: 60px;">ลำดับ</th>
+                  <th scope="col">ชื่อ-นามสกุล</th>
+                  <th scope="col">ชื่อเล่น</th>
+
+                  {% if user.is_authenticated and user == post.organizer %}
+                    <th scope="col">วันเกิด</th>
+                    <th scope="col">เพศ</th>
+                    <th scope="col">ที่อยู่ปัจจุบัน</th>
+                    <th scope="col">เบอร์โทร</th>
+                    <th scope="col">อีเมล</th>
+                    <th scope="col">ช่องทางติดต่อ</th>
+                    <th scope="col">โรคประจำตัว</th>
+                    <th scope="col">แพ้อาหาร</th>
+                    <th scope="col">แพ้ยา</th>
+                    <th scope="col">เข้าร่วมภาคสนาม</th>
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for reg in post.registrations.all %}
+                  {% if reg.status == "ACTIVE" %}
+                    <tr>
+                      <td>{{ forloop.counter }}</td>
+                      <td>{{ reg.prefix }} {{ reg.first_name }} {{ reg.last_name }}</td>
+                      <td>{{ reg.user.profile.nickname|default_if_none:"-"|default:"-" }}</td>
+
+                      {% if user.is_authenticated and user == post.organizer %}
+                        <td>{{ reg.birth_date|date:"d/m/Y" }}</td>
+                        <td>{{ reg.gender }}</td>
+                        <td>{{ reg.current_address }}</td>
+                        <td>{{ reg.phone }}</td>
+                        <td>{{ reg.email }}</td>
+                        <td>{{ reg.contact_channel }}</td>
+                        <td>{{ reg.chronic_disease|default:"-" }}</td>
+                        <td>{{ reg.food_allergy|default:"-" }}</td>
+                        <td>{{ reg.drug_allergy|default:"-" }}</td>
+                        <td>{{ reg.field_ability }}</td>
+                      {% endif %}
+                    </tr>
+                  {% endif %}
+                {% empty %}
+                  <tr>
+                    <td colspan="14" class="text-center text-muted">
+                      ยังไม่มีผู้สมัครสำหรับกิจกรรมนี้
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-muted small mb-0">
+            ยังไม่มีผู้สมัครสำหรับกิจกรรมนี้
+          </p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const openScheduleBtn   = document.getElementById('openScheduleBtn');
+  const scheduleModal     = document.getElementById('scheduleModal');
+  const closeScheduleBtn  = document.getElementById('closeScheduleBtn');
+  const closeScheduleBack = document.getElementById('closeScheduleBack');
+
+  function openSchedule() {
+    scheduleModal.classList.remove('d-none');
+    scheduleModal.classList.add('d-flex');
+  }
+  function closeSchedule() {
+    scheduleModal.classList.add('d-none');
+    scheduleModal.classList.remove('d-flex');
+  }
+
+  if (openScheduleBtn && scheduleModal) openScheduleBtn.addEventListener('click', openSchedule);
+  if (closeScheduleBtn) closeScheduleBtn.addEventListener('click', closeSchedule);
+  if (closeScheduleBack) closeScheduleBack.addEventListener('click', closeSchedule);
+  if (scheduleModal) {
+    scheduleModal.addEventListener('click', (e) => {
+      if (e.target === scheduleModal) closeSchedule();
+    });
+  }
+
+  // LIKE
+  document.querySelectorAll('.like-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const res = await fetch(`/post/${id}/toggle-like/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const icon = document.getElementById(`like-icon-${id}`);
+      icon.className = data.liked
+        ? 'fas fa-heart fs-5 text-danger'
+        : 'far fa-heart fs-5';
+    });
+  });
+
+  // SAVE
+  document.querySelectorAll('.save-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const res = await fetch(`/post/${id}/toggle-save/`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const icon = document.getElementById(`save-icon-${id}`);
+      icon.className = data.saved
+        ? 'fas fa-bookmark fs-5 text-primary'
+        : 'far fa-bookmark fs-5';
+    });
+  });
+
+  // ✅ ถ้าเลือก OTHER แล้วไม่กรอก other -> กันส่ง (ช่วย UX นิดเดียว ไม่กระทบ logic backend)
+  const cancelForm = document.getElementById('cancelForm');
+  if (cancelForm) {
+    cancelForm.addEventListener('submit', function(e) {
+      const otherRadio = document.getElementById('reason3');
+      const otherInput = document.getElementById('cancelOther');
+      if (otherRadio && otherRadio.checked && otherInput && !otherInput.value.trim()) {
+        e.preventDefault();
+        alert('กรุณาระบุเหตุผลเพิ่มเติม (อื่นๆ)');
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

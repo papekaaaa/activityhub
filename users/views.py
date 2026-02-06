@@ -4,6 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.contrib.auth import logout  # ✅ เพิ่ม
 from django.db import transaction  # ✅ เพิ่ม
+from django.contrib.auth.forms import SetPasswordForm
+from django.contrib.auth import update_session_auth_hash  # ✅ เพิ่ม (เพราะมีใช้ด้านล่าง)
 
 from .forms import UserUpdateForm, ProfileUpdateForm
 from .forms import DeleteAccountForm  # ✅ เพิ่ม (ไม่ลบของเดิม)
@@ -78,6 +80,10 @@ def profile_edit_view(request):
 
 @login_required
 def profile_detail_view(request, user_id):
+    # ✅ ถ้ากดส่องโปรไฟล์แล้วเป็น "ตัวเอง" ให้ไปหน้าโปรไฟล์ตัวเองทันที
+    if request.user.id == user_id:
+        return redirect('profile')
+
     # ✅ ไม่ให้ดูโปรไฟล์ของ user ที่ถูกลบ (ซ่อน)
     target_user = get_object_or_404(User, id=user_id, is_deleted=False, is_active=True)
     profile = target_user.profile
@@ -171,3 +177,40 @@ def delete_account_confirm_view(request):
         form = DeleteAccountForm()
 
     return render(request, "users/delete_account_confirm.html", {"form": form})
+
+
+@login_required
+def password_change_confirm_view(request):
+    """
+    Step 1: ยืนยันตัวตนด้วยรหัสผ่านปัจจุบัน
+    """
+    if request.method == "POST":
+        current_password = request.POST.get("current_password", "")
+        if request.user.check_password(current_password):
+            request.session["pwd_change_verified"] = True
+            return redirect("password_change")
+        messages.error(request, "รหัสผ่านปัจจุบันไม่ถูกต้อง")
+
+    return render(request, "users/password_change_confirm.html")
+
+
+@login_required
+def password_change_view(request):
+    """
+    Step 2: ตั้งรหัสผ่านใหม่ (หลังผ่าน step 1 แล้วเท่านั้น)
+    """
+    if not request.session.get("pwd_change_verified"):
+        return redirect("password_change_confirm")
+
+    if request.method == "POST":
+        form = SetPasswordForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # กันหลุด login
+            request.session.pop("pwd_change_verified", None)
+            messages.success(request, "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว")
+            return redirect("profile")
+    else:
+        form = SetPasswordForm(request.user)
+
+    return render(request, "users/password_change.html", {"form": form})

@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
+{% load tz %}
 
-{# ปิดไม่ให้แสดง Django messages บนหน้าแชท #}
+{# ปิดไม่ให้แสดง Django messages บนหน้าแชท (ตอนนี้ base มี block messages แล้ว) #}
 {% block messages %}{% endblock %}
 
 {% block content %}
@@ -69,16 +70,36 @@
     line-height: 1.4;
     background-color: #e3f1ff;
     color: #000;
+    word-break: break-word;
   }
 
   .chat-row.me .chat-bubble {
     background-color: #dbeafe;
   }
 
-  .chat-meta {
+  /* ✅ ทำให้ "ชื่อซ้าย เวลา ขวา" ตรงทุกข้อความ */
+  .chat-meta{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
     font-size: 0.75rem;
     color: #6b7280;
     margin-top: 0.15rem;
+  }
+
+  .chat-meta-name{
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-meta-time{
+    flex-shrink: 0;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .chat-input-area {
@@ -107,6 +128,16 @@
 
   .send-btn-icon {
     font-size: 1.4rem;
+  }
+
+  .attach-btn-icon {
+    font-size: 1.25rem;
+  }
+
+  .chat-attach-img {
+    max-width: 260px;
+    border-radius: 14px;
+    display: block;
   }
 
   @media (max-width: 768px) {
@@ -164,7 +195,7 @@
 
     <!-- MESSAGE LIST -->
     <div id="chatMessages" class="chat-messages flex-grow-1">
-      {% for msg in messages %}
+      {% for msg in chat_messages %}
         <div class="chat-row {% if msg.sender == request.user %}me{% else %}other{% endif %}">
           <div class="chat-bubble-wrap">
             {% if msg.sender != request.user %}
@@ -182,12 +213,34 @@
             {% endif %}
 
             <div>
+              {% if msg.content %}
               <div class="chat-bubble">
                 {{ msg.content|linebreaksbr }}
               </div>
+              {% endif %}
+
+              {% if msg.attachment %}
+                {% if msg.is_image %}
+                  <div class="chat-bubble">
+                    <img src="{{ msg.attachment.url }}" class="chat-attach-img" alt="attachment">
+                  </div>
+                {% else %}
+                  <div class="chat-bubble">
+                    <a href="{{ msg.attachment.url }}" target="_blank" rel="noopener">
+                      ไฟล์แนบ: {{ msg.attachment.name }}
+                    </a>
+                  </div>
+                {% endif %}
+              {% endif %}
+
+              <!-- ✅ ชื่อซ้าย เวลาไทยขวา (บังคับ localtime) -->
               <div class="chat-meta">
-                {{ msg.sender.get_full_name|default:msg.sender.username }} ·
-                {{ msg.created_at|date:"d/m/Y H:i" }}
+                <span class="chat-meta-name">
+                  {{ msg.sender.get_full_name|default:msg.sender.username }}
+                </span>
+                <span class="chat-meta-time">
+                  {{ msg.created_at|localtime|date:"d/m/Y H:i" }}
+                </span>
               </div>
             </div>
           </div>
@@ -201,8 +254,16 @@
 
     <!-- INPUT -->
     <div class="chat-input-area">
-      <form id="chatForm" class="chat-input-box" method="post">
+      <form id="chatForm" class="chat-input-box" method="post" enctype="multipart/form-data">
         {% csrf_token %}
+
+        <input id="chatFileInput" type="file" name="file" hidden />
+
+        <button type="button" class="btn btn-link p-0 attach-btn-icon"
+                onclick="document.getElementById('chatFileInput').click()">
+          <i class="fa-solid fa-paperclip"></i>
+        </button>
+
         <input
           id="chatMessageInput"
           name="content"
@@ -211,6 +272,7 @@
           placeholder="Aa"
           autocomplete="off"
         />
+
         <button type="submit" class="btn btn-link p-0 send-btn-icon">
           <i class="fa-solid fa-paper-plane"></i>
         </button>
@@ -227,6 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const messagesEl = document.getElementById('chatMessages');
   const formEl = document.getElementById('chatForm');
   const inputEl = document.getElementById('chatMessageInput');
+  const fileEl = document.getElementById('chatFileInput');
+
+  const uploadUrl = "{% url 'chat:upload_message' room.id %}";
 
   messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -249,14 +314,40 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function escapeHtml(text) {
-    return text
+    return String(text || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
   }
 
+  // ✅ ฟอร์แมตเวลา “บังคับเวลาไทย” (Asia/Bangkok)
+  function formatDateTimeBangkok(input) {
+    if (!input) return "";
+
+    // รองรับทั้ง timestamp, ISO, หรือ string อื่น ๆ
+    const d = new Date(input);
+    if (isNaN(d)) {
+      // ถ้า parse ไม่ได้ ก็โชว์ตามที่ได้มา (กันพัง)
+      return String(input);
+    }
+
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d);
+
+    const get = (type) => parts.find(p => p.type === type)?.value || "";
+    return `${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')}`;
+  }
+
   function appendMessage(data) {
     const isMe = data.sender_id === currentUserId;
+
     const row = document.createElement('div');
     row.className = 'chat-row ' + (isMe ? 'me' : 'other');
 
@@ -265,15 +356,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const bubbleContainer = document.createElement('div');
 
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
-    bubble.innerHTML = escapeHtml(data.message);
+    // ข้อความ
+    if (data.message && String(data.message).trim() !== "") {
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.innerHTML = escapeHtml(data.message);
+      bubbleContainer.appendChild(bubble);
+    }
 
+    // ไฟล์แนบ
+    if (data.file_url) {
+      const attach = document.createElement('div');
+      attach.className = 'chat-bubble';
+
+      if (data.is_image) {
+        attach.innerHTML = `<img src="${data.file_url}" class="chat-attach-img" alt="attachment">`;
+      } else {
+        attach.innerHTML = `<a href="${data.file_url}" target="_blank" rel="noopener">
+          ไฟล์แนบ: ${escapeHtml(data.file_name || "download")}
+        </a>`;
+      }
+      bubbleContainer.appendChild(attach);
+    }
+
+    // ✅ ชื่อซ้าย เวลาไทยขวา
     const meta = document.createElement('div');
     meta.className = 'chat-meta';
-    meta.textContent = `${data.sender_name} · ${data.created_at}`;
 
-    bubbleContainer.appendChild(bubble);
+    const metaName = document.createElement('span');
+    metaName.className = 'chat-meta-name';
+    metaName.textContent = data.sender_name || "";
+
+    const metaTime = document.createElement('span');
+    metaTime.className = 'chat-meta-time';
+
+    // ✅ ถ้า backend ส่ง created_at_iso มาจะตรงสุด
+    const rawTime = data.created_at_iso || data.created_at;
+    metaTime.textContent = formatDateTimeBangkok(rawTime);
+
+    meta.appendChild(metaName);
+    meta.appendChild(metaTime);
+
     bubbleContainer.appendChild(meta);
 
     wrapper.appendChild(bubbleContainer);
@@ -283,8 +406,32 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  formEl.addEventListener('submit', function(e) {
+  formEl.addEventListener('submit', async function(e) {
     const text = inputEl.value.trim();
+    const file = fileEl.files[0];
+
+    // ✅ ถ้ามีไฟล์ -> upload ผ่าน HTTP
+    if (file) {
+      e.preventDefault();
+
+      const fd = new FormData();
+      fd.append('content', text);
+      fd.append('file', file);
+
+      const res = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+        body: fd
+      });
+
+      if (res.ok) {
+        inputEl.value = '';
+        fileEl.value = '';
+      }
+      return;
+    }
+
+    // ✅ ไม่มีไฟล์ -> ส่งข้อความผ่าน websocket (ของเดิม)
     if (!text) {
       e.preventDefault();
       return;

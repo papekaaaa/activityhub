@@ -99,6 +99,14 @@
                                         style="background-color:#B9E6C9; border:none; border-radius:20px; font-weight:600; color:#000;">
                                     เสร็จสิ้น
                                 </button>
+
+                                <!-- ✅ เพิ่มปุ่มเปลี่ยนรหัสผ่าน (มีไอคอน) -->
+                                <a href="{% url 'password_change_confirm' %}"
+                                   class="btn btn-outline-dark px-4 py-2 ms-2"
+                                   style="border-radius:20px;">
+                                   <i class="fa-solid fa-key me-2"></i> เปลี่ยนรหัสผ่าน
+                                </a>
+
                                 <a href="{% url 'profile' %}" 
                                    class="btn btn-outline-secondary px-4 py-2 ms-2" 
                                    style="border-radius:20px;">

@@ -1,7 +1,5 @@
-from datetime import date
 from django.conf import settings
 from django.db import models
-
 from post.models import Post
 
 
@@ -9,6 +7,9 @@ class Notification(models.Model):
     class Kind(models.TextChoices):
         REGISTER_REMINDER = "REGISTER_REMINDER", "แจ้งเตือนก่อนกิจกรรม (ผู้สมัคร)"
         SAVED_REMINDER = "SAVED_REMINDER", "แจ้งเตือนก่อนกิจกรรม (ผู้บันทึก)"
+        OWNER_STATUS_REMINDER = "OWNER_STATUS_REMINDER", "แจ้งเตือนสถานะผู้สมัคร (ผู้สร้างกิจกรรม)"
+        OWNER_FULL = "OWNER_FULL", "แจ้งเตือนกิจกรรมเต็ม (ผู้สร้างกิจกรรม)"
+        POST_UPDATED = "POST_UPDATED", "แจ้งเตือนเมื่อโพสต์มีการเปลี่ยนแปลง"
         SYSTEM = "SYSTEM", "ระบบ"
 
     user = models.ForeignKey(

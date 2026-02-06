@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from .forms import ActivityRegistrationForm, ActivityReviewForm
 from .models import ActivityRegistration, ActivityReview
@@ -29,20 +30,97 @@ def _serialize_for_session(data: dict) -> dict:
     return result
 
 
+def _finalize_expired_pending_for_user(user):
+    qs = ActivityRegistration.objects.filter(
+        user=user,
+        status=ActivityRegistration.Status.CANCEL_PENDING,
+    )
+    for r in qs:
+        r.finalize_cancel_if_expired()
+
+
 # -----------------------------
 # สมัครกิจกรรม
 # -----------------------------
 @login_required
 def register_activity(request, post_id):
     post = get_object_or_404(Post, id=post_id)
+
+    _finalize_expired_pending_for_user(request.user)
+
+    # ✅ ถ้าเจ้าของปิดรับสมัคร
+    if not post.allow_register:
+        messages.error(request, "กิจกรรมนี้ปิดรับการสมัครแล้ว")
+        return redirect("post:post_detail", post_id=post.id)
+
+    # ✅ เช็คเต็ม (เฉพาะ ACTIVE)
+    if post.is_full():
+        # ปิดรับสมัครอัตโนมัติ
+        if post.allow_register:
+            post.allow_register = False
+            post.save(update_fields=["allow_register"])
+        messages.error(request, "กิจกรรมเต็มแล้ว")
+        return redirect("post:post_detail", post_id=post.id)
+
+    # ✅ ถ้าสมัครไปแล้ว
+    existing = ActivityRegistration.objects.filter(
+        user=request.user,
+        post=post,
+    ).first()
+
+    if existing:
+        # ถ้า pending ให้ไปหน้ารายละเอียดแล้วกดย้อนกลับได้
+        if existing.status == ActivityRegistration.Status.CANCEL_PENDING:
+            messages.warning(request, "คุณอยู่ระหว่างการยกเลิกกิจกรรม (ยังย้อนกลับได้ภายใน 5 นาที)")
+            return redirect("post:post_detail", post_id=post.id)
+
+        # ถ้ายกเลิกแล้วแต่ยังติด cooldown
+        if existing.status == ActivityRegistration.Status.CANCELED and existing.cooldown_until and timezone.now() < existing.cooldown_until:
+            mins = int((existing.cooldown_until - timezone.now()).total_seconds() // 60) + 1
+            messages.error(request, f"คุณเพิ่งยกเลิกกิจกรรมนี้ สมัครใหม่ได้อีกประมาณ {mins} นาที")
+            return redirect("post:post_detail", post_id=post.id)
+
+        # ACTIVE = สมัครไปแล้ว
+        if existing.status == ActivityRegistration.Status.ACTIVE:
+            messages.info(request, "คุณสมัครกิจกรรมนี้ไปแล้ว")
+            return redirect("post:post_detail", post_id=post.id)
+
+    # ✅ ตรวจ “วันเดียวกัน” + “เวลาชนกันแบบไม่มโน”: ชนกันเมื่อเวลาเริ่มตรงกัน
+    conflict_post = None
+    same_day_post = None
+    if post.event_date:
+        same_day_regs = ActivityRegistration.objects.filter(
+            user=request.user,
+            status=ActivityRegistration.Status.ACTIVE,
+            post__event_date__date=timezone.localtime(post.event_date).date(),
+        ).select_related("post")
+
+        for r in same_day_regs:
+            other = r.post
+            if not other.event_date:
+                continue
+
+            # ชนกัน: เวลาเริ่มตรงกัน
+            if timezone.localtime(other.event_date) == timezone.localtime(post.event_date):
+                conflict_post = other
+                break
+            else:
+                same_day_post = other
+
     session_data = request.session.get("register_profile")
 
     if request.method == "POST":
+        # ถ้ามีชนกัน -> บล็อคไม่ให้สมัคร (ต้องเลือกอย่างใดอย่างหนึ่ง)
+        if conflict_post:
+            messages.error(request, "คุณมีกิจกรรมอีกอันที่เวลาเดียวกัน กรุณายกเลิกหรือเลือกเพียงกิจกรรมเดียว")
+            return redirect("post:post_detail", post_id=post.id)
+
         form = ActivityRegistrationForm(request.POST)
         if form.is_valid():
             registration = form.save(commit=False)
             registration.user = request.user
             registration.post = post
+            registration.status = ActivityRegistration.Status.ACTIVE
             registration.save()
 
             # เก็บข้อมูลไว้ใน session สำหรับกรอกอัตโนมัติครั้งถัดไป
@@ -63,8 +141,36 @@ def register_activity(request, post_id):
                     user=request.user,
                     defaults={"is_admin": False},
                 )
-                # URL ไปหน้าห้องแชทกิจกรรม
                 chat_room_url = reverse("chat:activity_chat", args=[post.id])
+
+            # ✅ ถ้าสมัครแล้วเต็ม -> ปิดรับสมัครอัตโนมัติ + แจ้งเจ้าของ
+            if post.is_full():
+                post.allow_register = False
+                post.save(update_fields=["allow_register"])
+
+                # พยายามยิง Notification แบบไม่ทำให้ระบบพังถ้าไม่มี Kind นี้
+                try:
+                    from notifications.models import Notification
+                    Notification.objects.get_or_create(
+                        user=post.organizer,
+                        post=post,
+                        kind=getattr(Notification.Kind, "OWNER_FULL", Notification.Kind.SYSTEM),
+                        trigger_date=timezone.localdate(),
+                        defaults={
+                            "title": post.title,
+                            "message": f"กิจกรรมของคุณเต็มแล้ว (สมัคร {post.active_registrations_count()}/{post.slots_available})",
+                            "link_url": f"/post/{post.id}/",
+                        },
+                    )
+                except Exception:
+                    pass
+
+            # ✅ เตือนถ้าวันเดียวกันมีอีกกิจกรรม (แต่ไม่ชนเวลา)
+            if same_day_post and not conflict_post:
+                messages.warning(
+                    request,
+                    f"แจ้งเตือน: ในวันเดียวกันคุณมีกิจกรรมอื่นอยู่แล้ว: {same_day_post.title}"
+                )
 
             messages.success(request, "สมัครเข้าร่วมกิจกรรมเรียบร้อยแล้ว")
             return render(
@@ -76,14 +182,14 @@ def register_activity(request, post_id):
                     "success": True,
                     "edit_mode": False,
                     "chat_room_url": chat_room_url,
+                    "conflict_post": conflict_post,
+                    "same_day_post": same_day_post,
                 },
             )
     else:
         if session_data:
-            # ใช้ข้อมูลจาก session กรอกให้
             form = ActivityRegistrationForm(initial=session_data)
         else:
-            # ถ้าไม่มี session ให้ลองดึงข้อมูลจากการสมัครครั้งล่าสุด
             last_reg = (
                 ActivityRegistration.objects.filter(user=request.user)
                 .order_by("-id")
@@ -94,6 +200,12 @@ def register_activity(request, post_id):
             else:
                 form = ActivityRegistrationForm()
 
+    # GET: ส่งข้อมูลเตือนชนเวลา/วันเดียวกันไป template (ถ้าคุณจะโชว์)
+    if conflict_post:
+        messages.error(request, "คุณมีกิจกรรมอีกอันที่เวลาเดียวกัน กรุณายกเลิกหรือเลือกเพียงกิจกรรมเดียว")
+    elif same_day_post:
+        messages.warning(request, f"แจ้งเตือน: ในวันเดียวกันคุณมีกิจกรรมอื่นอยู่แล้ว: {same_day_post.title}")
+
     return render(
         request,
         "activity_register/register_form.html",
@@ -103,8 +215,69 @@ def register_activity(request, post_id):
             "success": False,
             "edit_mode": False,
             "chat_room_url": None,
+            "conflict_post": conflict_post,
+            "same_day_post": same_day_post,
         },
     )
+
+
+# -----------------------------
+# ยกเลิกกิจกรรม (เริ่มกระบวนการ)
+# -----------------------------
+@login_required
+def cancel_activity(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    reg = get_object_or_404(ActivityRegistration, user=request.user, post=post)
+
+    _finalize_expired_pending_for_user(request.user)
+
+    if reg.status != ActivityRegistration.Status.ACTIVE:
+        messages.info(request, "ไม่สามารถยกเลิกได้ในสถานะปัจจุบัน")
+        return redirect("post:post_detail", post_id=post.id)
+
+    if not reg.can_cancel():
+        messages.error(request, "ไม่สามารถยกเลิกได้ (เกินกำหนด 1 วันก่อนเริ่มกิจกรรม)")
+        return redirect("post:post_detail", post_id=post.id)
+
+    if request.method == "POST":
+        reason = request.POST.get("reason", "")
+        other = request.POST.get("other", "")
+
+        valid_reasons = {k for k, _ in ActivityRegistration.CancelReason.choices}
+        if reason not in valid_reasons:
+            messages.error(request, "กรุณาเลือกเหตุผลการยกเลิก")
+            return redirect("post:post_detail", post_id=post.id)
+
+        if reason == ActivityRegistration.CancelReason.OTHER and not other.strip():
+            messages.error(request, "กรุณาระบุเหตุผลเพิ่มเติม (อื่นๆ)")
+            return redirect("post:post_detail", post_id=post.id)
+
+        reg.start_cancel_pending(reason=reason, other=other)
+        messages.warning(request, "ระบบรับคำขอยกเลิกแล้ว คุณสามารถยกเลิกการดำเนินการได้ภายใน 5 นาที")
+        return redirect("post:post_detail", post_id=post.id)
+
+    # ถ้าคุณมีหน้าให้ติ๊กเหตุผลแยกจริง ๆ ก็เปลี่ยนไป render template ได้
+    # แต่เพื่อไม่แตะ template เพิ่ม ผมทำให้ใช้ POST จากหน้าเดิมได้
+    messages.info(request, "กรุณาส่งเหตุผลการยกเลิก")
+    return redirect("post:post_detail", post_id=post.id)
+
+
+# -----------------------------
+# ยกเลิกการดำเนินการยกเลิก (undo ภายใน 5 นาที)
+# -----------------------------
+@login_required
+@require_POST
+def undo_cancel_activity(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+    reg = get_object_or_404(ActivityRegistration, user=request.user, post=post)
+
+    ok = reg.undo_cancel()
+    if ok:
+        messages.success(request, "ยกเลิกการดำเนินการยกเลิกเรียบร้อยแล้ว")
+    else:
+        messages.error(request, "ไม่สามารถยกเลิกการดำเนินการได้ (อาจหมดเวลา 5 นาทีแล้ว)")
+
+    return redirect("post:post_detail", post_id=post.id)
 
 
 # -----------------------------
@@ -112,11 +285,6 @@ def register_activity(request, post_id):
 # -----------------------------
 @login_required
 def edit_register_profile(request):
-    """
-    แก้ไขข้อมูลพื้นฐานที่ใช้สมัครกิจกรรม
-    - ไม่ได้สร้าง/แก้ ActivityRegistration จริง
-    - แค่เก็บค่าไว้ใน session (และ bootstrap จาก registration ล่าสุดถ้ามี)
-    """
     session_data = request.session.get("register_profile")
 
     last_reg = None
@@ -130,7 +298,6 @@ def edit_register_profile(request):
     if request.method == "POST":
         form = ActivityRegistrationForm(request.POST)
         if form.is_valid():
-            # เซฟเฉพาะ cleaned_data ลง session
             request.session["register_profile"] = _serialize_for_session(
                 form.cleaned_data
             )
@@ -162,14 +329,12 @@ def edit_register_profile(request):
 # -----------------------------
 @login_required
 def joined_activities(request):
-    """
-    เงื่อนไข: user เคยสมัคร + วันกิจกรรมผ่านไปแล้ว
-    """
     today = timezone.localdate()
 
     joined_posts = (
         Post.objects.filter(
             registrations__user=request.user,
+            registrations__status=ActivityRegistration.Status.ACTIVE,  # ✅ ไม่เอาที่เคยยกเลิก
             event_date__lt=today,
         )
         .distinct()
@@ -196,28 +361,23 @@ def joined_activities(request):
 def review_activity(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
-    # ยังไม่ถึงวันกิจกรรม ห้ามรีวิว
     today = timezone.localdate()
 
-    # แปลง event_date ให้กลายเป็น date เสมอ (รองรับทั้ง DateField / DateTimeField)
     event_date = None
     if post.event_date:
         if isinstance(post.event_date, datetime):
-            # ถ้าเป็น DateTimeField -> แปลงเป็น date ตาม timezone ปัจจุบัน
             event_date = timezone.localtime(post.event_date).date()
         else:
-            # ถ้าเป็น DateField อยู่แล้ว
             event_date = post.event_date
 
-    # ถ้าไม่มีวันที่ หรือยังไม่ถึงวันกิจกรรม ห้ามรีวิว
     if not event_date or event_date > today:
         messages.error(request, "ยังไม่สามารถรีวิวได้ ต้องรอให้กิจกรรมจบก่อน")
         return redirect("activity_register:joined_activities")
 
-    # ต้องเคยลงทะเบียนกิจกรรมนี้
     has_registered = ActivityRegistration.objects.filter(
         post=post,
         user=request.user,
+        status=ActivityRegistration.Status.ACTIVE,  # ✅ ต้องเป็น ACTIVE
     ).exists()
 
     if not has_registered:

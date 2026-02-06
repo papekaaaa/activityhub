@@ -2,9 +2,14 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.contrib.auth import get_user_model
+from django.utils.timezone import localtime
+from zoneinfo import ZoneInfo
+
 from .models import ChatRoom, ChatMessage, ChatMembership
 
 User = get_user_model()
+BKK_TZ = ZoneInfo("Asia/Bangkok")
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -16,13 +21,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        # เช็คว่าเป็นสมาชิกห้องนี้ไหม
         is_member = await self._is_member(user.id, self.room_id)
         if not is_member:
             await self.close()
             return
 
-        # join group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -37,16 +40,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         data = json.loads(text_data)
-        message = data.get('message', '').strip()
+        message = (data.get('message') or '').strip()
         user = self.scope["user"]
 
         if not message:
             return
 
-        # save message DB
         msg_obj = await self._create_message(user.id, self.room_id, message)
 
-        # broadcast
+        # ✅ บังคับเป็นเวลาไทย
+        dt_local = localtime(msg_obj.created_at, timezone=BKK_TZ)
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
@@ -54,16 +58,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message': msg_obj.content,
                 'sender_id': user.id,
                 'sender_name': user.get_full_name() or user.username,
-                'created_at': msg_obj.created_at.strftime('%d/%m/%Y %H:%M'),
+                'created_at': dt_local.strftime('%d/%m/%Y %H:%M'),
+                'created_at_iso': dt_local.isoformat(),
+                'file_url': '',
+                'file_name': '',
+                'is_image': False,
             }
         )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
-            'message': event['message'],
-            'sender_id': event['sender_id'],
-            'sender_name': event['sender_name'],
-            'created_at': event['created_at'],
+            'message': event.get('message', ''),
+            'sender_id': event.get('sender_id'),
+            'sender_name': event.get('sender_name'),
+            'created_at': event.get('created_at', ''),
+            'created_at_iso': event.get('created_at_iso', ''),
+            'file_url': event.get('file_url', ''),
+            'file_name': event.get('file_name', ''),
+            'is_image': event.get('is_image', False),
         }))
 
     # ---------- DB helpers ----------

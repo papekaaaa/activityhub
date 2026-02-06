@@ -94,12 +94,14 @@
                 {% if post.organizer.profile.profile_picture %}
                 <img
                   src="{{ post.organizer.profile.profile_picture.url }}"
+                  onerror="this.onerror=null;this.src='/media/profile_pics/default.webp';"
                   class="me-2 profile-avatar"
                   alt="โปรไฟล์ผู้จัดกิจกรรม"
                 />
                 {% else %}
                 <img
-                  src="{% static 'images/default_profile.png' %}"
+                  src="/media/profile_pics/default.webp"
+                  onerror="this.onerror=null;this.src='{% static 'images/default_profile.png' %}';"
                   class="me-2 profile-avatar"
                   alt="โปรไฟล์เริ่มต้น"
                 />
@@ -114,15 +116,15 @@
             </div>
 
             <div class="d-flex align-items-center gap-2">
-              <!-- ปุ่มติดตาม (ตอนนี้เป็น frontend / ajax) -->
+              <!-- ✅ ปุ่มติดตาม (เชื่อม backend จริง) -->
               {% if user.is_authenticated and user.id != post.organizer.id %}
               <button
                 type="button"
-                class="btn btn-outline-secondary btn-sm rounded-pill px-3 follow-btn"
-                data-following="false"
-                data-user-id="{{ post.organizer.id }}"
+                class="btn btn-sm rounded-pill px-3 follow-btn {% if post.is_following %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                data-following="{{ post.is_following|yesno:'true,false' }}"
+                data-url="{% url 'follow_toggle' post.organizer.id %}"
               >
-                ติดตาม
+                {% if post.is_following %}กำลังติดตาม{% else %}ติดตาม{% endif %}
               </button>
               {% endif %}
 
@@ -247,13 +249,16 @@
                   </button>
                   <small id="like-count-{{ post.id }}">{{ post.likes.count }}</small>
 
-                  <!-- COMMENT -->
+                  <!-- COMMENT + ✅ จำนวนรีวิว -->
                   <a
                     href="{% url 'post:post_detail' post.id %}#comments"
-                    class="text-dark"
+                    class="text-dark d-inline-flex align-items-center gap-2"
                     aria-label="comments"
                   >
                     <i class="fa-regular fa-comment fs-5"></i>
+                    <small class="text-muted" id="review-count-{{ post.id }}">
+                      {{ post.review_count|default:0 }}
+                    </small>
                   </a>
 
                   <!-- SAVE -->
@@ -588,20 +593,34 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // FOLLOW (frontend-only toggle ตอนนี้; logic จริงไปทำ view ajax ทีหลังได้)
+  // ✅ FOLLOW (เชื่อม backend จริง)
   document.querySelectorAll('.follow-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const following = btn.getAttribute('data-following') === 'true';
-      if (following) {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline-secondary');
-        btn.textContent = 'ติดตาม';
-        btn.setAttribute('data-following', 'false');
-      } else {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.url;
+      if (!url) return;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': window.CSRF_TOKEN,
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const isFollowing = data.is_following === true;
+
+      if (isFollowing) {
         btn.classList.remove('btn-outline-secondary');
         btn.classList.add('btn-primary');
         btn.textContent = 'กำลังติดตาม';
         btn.setAttribute('data-following', 'true');
+      } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline-secondary');
+        btn.textContent = 'ติดตาม';
+        btn.setAttribute('data-following', 'false');
       }
     });
   });

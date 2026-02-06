@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}ประกาศความเป็นส่วนตัว (Privacy Notice) | Activity Hub{% endblock %}
+
+{% block content %}
+<style>
+  .doc-wrap{
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 18px 90px;
+  }
+  .doc-shell{
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  .doc-side{
+    position: sticky;
+    top: 130px; /* เผื่อ navbar fixed */
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 18px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+    padding: 18px 16px;
+  }
+  .doc-side .side-title{
+    font-weight: 800;
+    color: #111827;
+    margin: 0 0 10px;
+  }
+  .side-links{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .side-links a{
+    text-decoration: none;
+    color: #1d4ed8;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(29,78,216,0.12);
+    background: rgba(29,78,216,0.06);
+  }
+  .side-links a:hover{ filter: brightness(0.98); }
+  .doc-main{
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 22px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .doc-hero{
+    padding: 34px 34px 18px;
+    background:
+      radial-gradient(1200px 320px at 20% 0%, rgba(16,185,129,0.16), transparent 55%),
+      radial-gradient(900px 280px at 90% 10%, rgba(59,130,246,0.18), transparent 52%),
+      linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.88));
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .doc-title{
+    font-size: clamp(28px, 3vw, 44px);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+    color: #0f172a;
+  }
+  .doc-subtitle{
+    margin: 0;
+    color: #4b5563;
+    line-height: 1.7;
+    font-size: 1rem;
+  }
+  .doc-body{
+    padding: 26px 34px 24px;
+    line-height: 1.95;
+    color: #111827;
+    font-size: 1.02rem;
+  }
+  .doc-body p{ margin: 0 0 16px; }
+  .sec{
+    padding: 18px 18px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 18px;
+    background: rgba(255,255,255,0.75);
+    margin: 14px 0 18px;
+  }
+  .sec h2{
+    font-size: 1.18rem;
+    font-weight: 900;
+    color: #0f766e;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sec h2 .num{
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: rgba(15,118,110,0.12);
+    color: #0f766e;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+  }
+  .sec ol, .sec ul{
+    margin: 0 0 0 20px;
+    padding: 0;
+  }
+  .sec li{ margin: 6px 0; }
+  .doc-callout{
+    background: rgba(59,130,246,0.08);
+    border: 1px solid rgba(59,130,246,0.18);
+    padding: 14px 16px;
+    border-radius: 14px;
+    color: #1f2937;
+    margin-top: 10px;
+  }
+  .doc-footer{
+    padding: 18px 34px 28px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: rgba(255,255,255,0.9);
+  }
+  .doc-footer small{ color: #6b7280; }
+  .doc-btn{
+    border-radius: 999px;
+    padding: 10px 16px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: white;
+    color: #111827;
+    font-weight: 700;
+  }
+  .doc-btn:hover{ filter: brightness(0.98); }
+
+  @media (max-width: 980px){
+    .doc-shell{ grid-template-columns: 1fr; }
+    .doc-side{ position: relative; top: 0; }
+  }
+  @media (max-width: 640px){
+    .doc-hero, .doc-body, .doc-footer{ padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+
+<div class="doc-wrap">
+  <div class="doc-shell">
+
+    <!-- Sidebar (สารบัญ) -->
+    <aside class="doc-side">
+      <div class="side-title"><i class="fa-regular fa-compass"></i> สารบัญ</div>
+      <div class="text-muted" style="font-size:0.92rem; line-height:1.55;">
+        ประกาศความเป็นส่วนตัว (Privacy Notice) สำหรับผู้สมัครสมาชิกเป็นอาสา
+      </div>
+      <div class="side-links">
+        <a href="#sec1">1. ฐานกฎหมาย</a>
+        <a href="#sec2">2. วัตถุประสงค์</a>
+        <a href="#sec3">3. รายการข้อมูลที่เก็บ</a>
+        <a href="#sec4">4. ระยะเวลาเก็บข้อมูล</a>
+        <a href="#sec5">5. สิทธิของเจ้าของข้อมูล</a>
+        <a href="#sec6">6. การติดต่อ</a>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <section class="doc-main">
+      <div class="doc-hero">
+        <h1 class="doc-title">ประกาศความเป็นส่วนตัว (Privacy Notice)</h1>
+        <p class="doc-subtitle">
+          ของ ผู้สมัครสมาชิกเป็นอาสา เพื่อใช้งานเว็บไซต์ Activity Hub
+        </p>
+      </div>
+
+      <div class="doc-body">
+        <p>
+          ประกาศความเป็นส่วนตัวฉบับนี้จึงจัดทำขึ้นเพื่อให้ท่านในฐานะ ผู้สมัครสมาชิกเป็นอาสา
+          (ซึ่งต่อไปในประกาศนี้เรียกว่า “เจ้าของข้อมูลส่วนบุคคล”) ได้ทราบและเข้าใจรูปแบบ วิธีการ
+          และวัตถุประสงค์และความจำเป็นของ Activity Hub ในฐานะผู้ควบคุมข้อมูลส่วนบุคคล
+          ที่ต้องดำเนินการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคลของท่าน ให้สอดคล้องกับพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562
+          ซึ่งมีรายละเอียดดังต่อไปนี้
+        </p>
+
+        <div id="sec1" class="sec">
+          <h2><span class="num">1</span> ฐานกฎหมายในการเก็บรวบรวมข้อมูลส่วนบุคคล</h2>
+          <p>การเก็บรวบรวมข้อมูลส่วนบุคคลของท่านภายใต้ฐานกฎหมาย โดยมีรายละเอียด ดังต่อไปนี้</p>
+          <ol>
+            <li>
+              ดำเนินการเก็บรวบรวมข้อมูลส่วนบุคคลเพื่อการปฏิบัติตามสัญญา โดยนำข้อมูลส่วนบุคคลนั้นไปใช้ประโยชน์ในการลงทะเบียนเป็นสมาชิกอาสาเพื่อสมัครงานอาสาที่เผยแพร่ในเว็บไซต์ Activity Hub
+              หากไม่ได้รับข้อมูลส่วนบุคคลดังกล่าว จะทำให้สมาชิกอาสาไม่สามารถสมัครเข้าร่วมงานอาสาและไม่ได้รับข้อมูลการประสานงานและการจัดการหลังสมัครงานอาสา
+            </li>
+            <li>
+              ดำเนินการเก็บรวบรวมข้อมูลส่วนบุคคลเพื่อประโยชน์ชอบด้วยกฎหมาย โดยนำข้อมูลส่วนบุคคลนั้นไปใช้ประโยชน์ในการวิเคราะห์สังเคราะห์ เพื่อนำมาปรับปรุง พัฒนาเว็บไซต์ Activity Hub
+              และการจัดการงานอาสาโดยองค์กรอาสา
+            </li>
+          </ol>
+        </div>
+
+        <div id="sec2" class="sec">
+          <h2><span class="num">2</span> วัตถุประสงค์ในการเก็บรวบรวม ใช้ และเปิดเผยข้อมูลส่วนบุคคล</h2>
+          <p>
+            Activity Hub ใช้ข้อมูลส่วนบุคคลของท่านภายใต้ขอบเขตของกฎหมายคุ้มครองข้อมูล และเก็บรวบรวมข้อมูลเท่าที่จำเป็นสำหรับการดำเนินการดังกล่าว
+            Activity Hub จะจัดเก็บข้อมูลที่เกี่ยวข้องกับการให้บริการระหว่างท่านกับ Activity Hub เท่าที่จำเป็น
+          </p>
+          <ol>
+            <li>เพื่อใช้ในการลงทะเบียนเข้าร่วมกิจกรรมอาสา และการจัดการงานอาสา</li>
+            <li>เพื่อนำไปใช้ในการวิเคราะห์สังเคราะห์ เพื่อนำมาปรับปรุง พัฒนาเว็บไซต์ Activity Hub ให้มีการบริการที่ดีขึ้น เมื่อท่านใช้บริการ</li>
+          </ol>
+        </div>
+
+        <div id="sec3" class="sec">
+          <h2><span class="num">3</span> รายการข้อมูลส่วนบุคคลที่เก็บรวบรวม</h2>
+          <p>
+            ธนาคารจิตอาสาดำเนินการเก็บรวบรวมข้อมูลส่วนบุคคลของท่านจากเว็บไซต์ธนาคารจิตอาสา ผ่านขั้นตอนการสมัครสมาชิกเว็บไซต์ธนาคารจิตอาสา
+            มีรายการข้อมูลที่เก็บรวบรวม ได้แก่ อีเมล ชื่อ นามสกุล เพศ วันเดือนปีเกิด จังหวัดที่อาศัยอยู่ เบอร์โทรศัพท์
+            ซึ่งสามารถเชื่อมโยงไปถึงเจ้าของข้อมูลส่วนบุคคล
+          </p>
+          <div class="doc-callout">
+            <strong>แนวคิดง่าย ๆ:</strong> เก็บเท่าที่จำเป็นต่อการสมัคร/ประสานงาน/จัดการกิจกรรม และพัฒนาบริการให้ดีขึ้น
+          </div>
+        </div>
+
+        <div id="sec4" class="sec">
+          <h2><span class="num">4</span> ระยะเวลาในการเก็บรวบรวมข้อมูลส่วนบุคคล</h2>
+          <p>
+            Activity Hub จัดให้มีการรักษาความปลอดภัยที่มีมาตรฐานเพื่อให้การเก็บข้อมูลส่วนบุคคลของท่านมีความปลอดภัย
+            ข้อมูลส่วนบุคคลของท่านจะถูกเก็บรวบรวมไว้ตามระยะเวลาที่จำเป็นเพื่อดำเนินการตามวัตถุประสงค์ในการให้บริการของ Activity Hub
+          </p>
+        </div>
+
+        <div id="sec5" class="sec">
+          <h2><span class="num">5</span> สิทธิของเจ้าของข้อมูลส่วนบุคคล</h2>
+          <p>
+            ท่านสามารถใช้สิทธิเกี่ยวกับข้อมูลส่วนบุคคลของท่านได้ตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562 ดังต่อไปนี้
+          </p>
+          <ol>
+            <li>สิทธิในการเข้าถึง ขอสำเนา หรือขอรับข้อมูลส่วนบุคคลที่เก็บรวบรวมไว้ รวมถึงขอให้เปิดเผยถึงการได้มาซึ่งข้อมูลส่วนบุคคลที่เจ้าของข้อมูลส่วนบุคคลไม่ได้ให้ความยินยอม</li>
+            <li>สิทธิขอรับหรือขอให้ส่งหรือโอนข้อมูลส่วนบุคคลที่มีการจัดทำให้อยู่ในรูปแบบที่สามารถอ่านหรือใช้งานได้ด้วยเครื่องมือหรืออุปกรณ์ที่ทำงานได้โดยอัตโนมัติและสามารถใช้หรือเปิดเผยข้อมูลส่วนบุคคลได้ด้วยวิธีอัตโนมัติ</li>
+            <li>สิทธิในการคัดค้านหรือขอให้ระงับการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคล</li>
+            <li>สิทธิในการขอให้ลบ ทำลาย หรือทำให้ข้อมูลส่วนบุคคลเป็นข้อมูลที่ไม่สามารถระบุตัวบุคคลของเจ้าของข้อมูลส่วนบุคคลได้</li>
+            <li>สิทธิในการขอให้ดำเนินการให้ข้อมูลส่วนบุคคลถูกต้อง เป็นปัจจุบัน สมบูรณ์ และไม่ก่อให้เกิดความเข้าใจผิด</li>
+            <li>สิทธิในการเพิกถอนความยินยอมในการเก็บรวบรวม ใช้ หรือเปิดเผยข้อมูลส่วนบุคคล</li>
+          </ol>
+
+          <p class="mt-3" style="margin-top:12px;">
+            ทั้งนี้ ท่านสามารถยื่นคำร้องขอให้ Activity Hub ดำเนินการตามสิทธิได้โดยแจ้งไปที่ <strong>activityhub@gmail.com</strong>
+          </p>
+        </div>
+
+        <div id="sec6" class="sec">
+          <h2><span class="num">6</span> การติดต่อ</h2>
+          <p><strong>ผู้ควบคุมข้อมูลส่วนบุคคล</strong></p>
+          <ul>
+            <li><strong>Activity Hub</strong></li>
+            <li>อีเมล: <strong>activityhub@gmail.com</strong></li>
+            <li>เว็บไซต์: <strong>https://www.activityhub.com</strong></li>
+            <li>หมายเลขโทรศัพท์: <strong>0809787110</strong></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <small>ประกาศนี้จัดทำเพื่อแจ้งให้ทราบถึงการเก็บ ใช้ และเปิดเผยข้อมูลส่วนบุคคล</small>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -223,9 +223,14 @@
                 <a href="{% url 'profile' %}"
                    style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.6rem;">
                     {% if user.profile.profile_picture %}
-                        <img src="{{ user.profile.profile_picture.url }}" alt="Profile Picture" class="navbar-user-pic">
+                        <img src="{{ user.profile.profile_picture.url }}"
+                             onerror="this.onerror=null;this.src='/media/profile_pics/default.webp';"
+                             alt="Profile Picture"
+                             class="navbar-user-pic">
                     {% else %}
-                        <img src="{% static 'images/default_profile.png' %}" alt="Profile Picture" class="navbar-user-pic">
+                        <img src="/media/profile_pics/default.webp"
+                             alt="Profile Picture"
+                             class="navbar-user-pic">
                     {% endif %}
                     <div class="navbar-logout-section">
                         <span>{{ user.email|truncatechars:15 }}</span>

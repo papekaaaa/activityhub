@@ -145,16 +145,13 @@
     {% include 'partials/navbar.html' %}
 
     <main class="container-fluid p-0 m-0">
-        {% if messages %}
-            <div class="px-3 mb-4">
-                {% for message in messages %}
-                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+
+        {# ✅ เคลียร์ Django messages แบบไม่แสดงผล (กันข้อความสะสมไปโผล่หน้าอื่น) #}
+        {% block messages %}
+            {% if messages %}
+                {% for message in messages %}{% endfor %}
+            {% endif %}
+        {% endblock %}
 
         {% block content %}
         {% endblock %}
@@ -279,8 +276,6 @@
             </div>
           `;
 
-          // ขวา (เน้นแดงแบบ mock) — ถ้า message เป็นข้อความเตือนอยู่แล้วจะขึ้นซ้ำได้
-          // เลยเอาเฉพาะบาง kind ถ้าต้องการคุมข้อความค่อยปรับใน API
           const right = document.createElement("div");
           right.className = "notif-right";
           right.textContent = (n.kind === "REGISTER_REMINDER" || n.kind === "SAVED_REMINDER") ? (n.message || "") : "";
@@ -305,20 +300,16 @@
       }
 
       document.addEventListener("DOMContentLoaded", () => {
-        // โหลด badge ตอนเข้าเว็บ
         loadNotifications();
 
-        // เปิด modal แล้วค่อยโหลดรายการอีกที
         const modal = document.getElementById("notifModal");
         if (modal) {
           modal.addEventListener("shown.bs.modal", loadNotifications);
         }
 
-        // polling อัปเดต badge ทุก 60 วิ
         setInterval(loadNotifications, 60000);
       });
     </script>
     {% endif %}
 </body>
-
 </html>

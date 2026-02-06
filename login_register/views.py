@@ -7,12 +7,31 @@ from users.models import User
 from .forms import CustomUserCreationForm
 
 
+def terms_view(request):
+    return render(request, 'login/terms.html')
+
+
+def privacy_view(request):
+    return render(request, 'login/privacy.html')
+
+
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('home:home')
 
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
+
+        # ✅ ต้องติ๊กก่อนถึงสมัครได้ (ฝั่ง server)
+        accept_terms = request.POST.get('accept_terms')
+        accept_privacy = request.POST.get('accept_privacy')
+
+        if not accept_terms or not accept_privacy:
+            return render(request, 'login/register.html', {
+                'form': form,
+                'consent_error': 'กรุณายอมรับ "ข้อตกลงและเงื่อนไข" และ "ประกาศความเป็นส่วนตัว (Privacy Notice)" ก่อนสมัครสมาชิก'
+            })
+
         if form.is_valid():
             user = form.save()
             login(request, user)

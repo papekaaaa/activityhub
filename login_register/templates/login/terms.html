@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}เงื่อนไขและข้อตกลงการใช้บริการ | Activity Hub{% endblock %}
+
+{% block content %}
+<style>
+  .doc-wrap{
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 18px 80px;
+  }
+  .doc-card{
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 22px;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  .doc-hero{
+    padding: 34px 34px 18px;
+    background:
+      radial-gradient(1200px 300px at 20% 0%, rgba(59,130,246,0.18), transparent 55%),
+      radial-gradient(900px 260px at 90% 10%, rgba(250,204,21,0.18), transparent 50%),
+      linear-gradient(to bottom, rgba(255,255,255,0.95), rgba(255,255,255,0.88));
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .doc-title{
+    font-size: clamp(26px, 3vw, 40px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 8px;
+    color: #111827;
+  }
+  .doc-subtitle{
+    margin: 0;
+    color: #4b5563;
+    line-height: 1.6;
+    font-size: 1rem;
+  }
+  .doc-badges{
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .doc-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 0.92rem;
+    border: 1px solid rgba(0,0,0,0.08);
+    background: rgba(255,255,255,0.8);
+    color: #111827;
+  }
+  .doc-body{
+    padding: 28px 34px 30px;
+    line-height: 1.9;
+    color: #111827;
+    font-size: 1.02rem;
+  }
+  .doc-body p{
+    margin: 0 0 18px;
+  }
+  .doc-section-title{
+    margin: 22px 0 10px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1d4ed8;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .doc-section-title .dot{
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #1d4ed8;
+    box-shadow: 0 0 0 5px rgba(29,78,216,0.12);
+  }
+  .doc-note{
+    background: rgba(59,130,246,0.08);
+    border: 1px solid rgba(59,130,246,0.18);
+    padding: 14px 16px;
+    border-radius: 14px;
+    color: #1f2937;
+    margin-top: 18px;
+  }
+  .doc-footer{
+    padding: 18px 34px 28px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: rgba(255,255,255,0.9);
+  }
+  .doc-footer small{
+    color: #6b7280;
+  }
+  .doc-btn{
+    border-radius: 999px;
+    padding: 10px 16px;
+    border: 1px solid rgba(0,0,0,0.12);
+    background: white;
+    color: #111827;
+    font-weight: 600;
+  }
+  .doc-btn:hover{
+    filter: brightness(0.98);
+  }
+  @media (max-width: 640px){
+    .doc-hero, .doc-body, .doc-footer{ padding-left: 18px; padding-right: 18px; }
+  }
+</style>
+
+<div class="doc-wrap">
+  <div class="doc-card">
+    <div class="doc-hero">
+      <h1 class="doc-title">เงื่อนไขและข้อตกลงการใช้บริการ</h1>
+      <p class="doc-subtitle">
+        โปรดอ่านเงื่อนไขนี้ก่อนใช้งานเว็บไซต์ Activity Hub เพื่อความเข้าใจร่วมกันในการใช้บริการและการเข้าร่วมกิจกรรมจิตอาสา
+      </p>
+      <div class="doc-badges">
+        <span class="doc-badge"><i class="fa-regular fa-file-lines"></i> ข้อตกลงการใช้บริการ</span>
+        <span class="doc-badge"><i class="fa-regular fa-handshake"></i> แนวปฏิบัติการใช้งาน</span>
+        <span class="doc-badge"><i class="fa-regular fa-circle-check"></i> เพื่อความโปร่งใส</span>
+      </div>
+    </div>
+
+    <div class="doc-body">
+      <div class="doc-section-title"><span class="dot"></span> 1) ภาพรวมโครงการ</div>
+      <p>
+        เว็บไซต์ของโครงการ “Activity Hub” ภายใต้ชุดโครงการร่วมสร้างสังคมจิตอาสา
+        เป็นโครงการเพื่อส่งเสริมอาสาสมัครที่เน้นการสื่อสารผ่านแนวคิดการลงทุนเวลาอาสาเพื่อสร้างสังคม
+        โดยเป็นสื่อกลางระหว่างประชาชนและองค์กรอาสาสมัคร เพื่อเปิดให้ทุกคนได้มีส่วนร่วมกับงานอาสาสมัคร
+        ในทุกรูปแบบและทุกโอกาส
+      </p>
+
+      <div class="doc-section-title"><span class="dot"></span> 2) ความถูกต้องของข้อมูลและความรับผิดชอบ</div>
+      <p>
+        เว็บไซต์นี้เปิดให้บริการแบบสาธารณะ และพยายามอย่างเต็มที่เพื่อนำเสนอข้อมูล ข่าวสาร บทความ
+        หรือข้อความอื่นใดทั้งหมดให้ถูกต้องและเที่ยงตรงมากที่สุด แต่อย่างไรก็ตาม Activity Hub
+        ไม่สามารถรับประกัน รับรองความถูกต้อง และความสมบูรณ์ของเนื้อหาได้ทั้งหมด
+        ทาง Activity Hub ไม่รับผิดชอบความเสียหายใดๆ ที่เกิดจากความผิดพลาดหรือความบกพร่องของข้อมูลบนเว็บไซต์นี้
+      </p>
+
+      <div class="doc-section-title"><span class="dot"></span> 3) การเข้าร่วมกิจกรรม/การอบรม</div>
+      <p>
+        ผู้ใช้ที่สมัครเข้าร่วมกิจกรรมอาสา หรือการอบรม จะต้องศึกษารายละเอียด และข้อตกลง
+        จากองค์กรที่จัดกิจกรรมหรือการอบรมนั้นๆ ทางธนาคารจิตอาสาไม่รับผิดชอบความเสียหายใดๆ
+        ที่เกิดจากการเข้าร่วมกิจกรรมอาสาหรือการอบรมใดๆ ทั้งสิ้น
+      </p>
+
+      <div class="doc-section-title"><span class="dot"></span> 4) นโยบายลิขสิทธิ์</div>
+      <p>
+        นโยบายลิขสิทธิ์ สำหรับข้อมูลต่างๆ บน website
+      </p>
+
+      <div class="doc-note">
+        <strong>หมายเหตุ:</strong> เนื้อหาในหน้านี้เป็น “ข้อตกลงการใช้บริการของ Activity Hub”
+        หากต้องการให้เป็นรูปแบบทางกฎหมายที่เข้มขึ้น (เช่น กำหนดเขตอำนาจศาล/ข้อห้าม/การระงับบัญชี)
+        คุณสามารถเพิ่มหัวข้อย่อยได้ โดยไม่ต้องเปลี่ยนดีไซน์
+      </div>
+    </div>
+
+    <div class="doc-footer">
+      <small>เอกสารนี้แสดงเพื่อการรับทราบและใช้อ้างอิงในการใช้งานเว็บไซต์</small>
+    </div>
+  </div>
+</div>
+{% endblock %}

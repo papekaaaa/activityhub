@@ -50,11 +50,24 @@ class ChatMembership(models.Model):
 class ChatMessage(models.Model):
     room = models.ForeignKey(ChatRoom, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    content = models.TextField()
+
+    # ✅ ปรับให้ว่างได้ เพื่อส่งไฟล์อย่างเดียวได้
+    content = models.TextField(blank=True)
+
+    # ✅ เพิ่มไฟล์แนบ
+    attachment = models.FileField(upload_to="chat_uploads/%Y/%m/", blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     # option เผื่อทำ unread badge
     is_read = models.BooleanField(default=False)
 
+    def is_image(self):
+        if not self.attachment:
+            return False
+        name = (self.attachment.name or "").lower()
+        return name.endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
+
     def __str__(self):
-        return f"{self.sender} @ {self.room}: {self.content[:30]}"
+        preview = (self.content or "")[:30]
+        return f"{self.sender} @ {self.room}: {preview}"

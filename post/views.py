@@ -7,7 +7,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Avg
 from .models import Post
 from .forms import PostForm
-from activity_register.models import ActivityReview
+from activity_register.models import ActivityReview, ActivityRegistration
 from chat.models import ChatRoom, ChatMembership
 import json
 
@@ -26,7 +26,6 @@ def create_post(request):
             post.map_lng = request.POST.get('map_lng') or None
             post.save()
 
-            # สร้างห้องแชทของกิจกรรม + ดึง organizer เข้าห้อง
             room = ChatRoom.objects.create(
                 room_type='GROUP',
                 name=post.title,
@@ -44,7 +43,6 @@ def create_post(request):
     else:
         form = PostForm()
 
-    # ดึง url รูปโปรไฟล์ของ user
     profile_pic_url = None
     user = request.user
 
@@ -59,6 +57,25 @@ def create_post(request):
         "profile_pic_url": profile_pic_url,
     }
     return render(request, 'post/create_post.html', context)
+
+
+# ------------------------------
+# ✅ ปิดรับสมัคร (กดจากหน้าแก้ไขโพสต์)
+# ------------------------------
+@login_required
+@require_POST
+def close_registration(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    if post.organizer != request.user:
+        return HttpResponseForbidden("คุณไม่มีสิทธิ์แก้ไขกิจกรรมนี้")
+
+    if post.allow_register:
+        post.allow_register = False
+        post.save(update_fields=["allow_register"])
+        messages.success(request, "ปิดรับการสมัครเรียบร้อยแล้ว")
+
+    return redirect('post:post_edit', post_id=post.id)
 
 
 # ------------------------------
@@ -90,6 +107,8 @@ def post_update_view(request, post_id):
             'form': form,
             'title': 'แก้ไขกิจกรรม',
             'post': post,
+            # ✅ ใช้ใน template: ถ้า allow_register=True ให้โชว์ปุ่ม "ปิดรับการสมัคร"
+            'show_close_register_button': post.allow_register,
         },
     )
 
@@ -127,12 +146,28 @@ def post_detail_view(request, post_id):
     avg_rating_int = int(round(avg_rating)) if avg_rating else 0
     review_count = reviews.count()
 
+    # ✅ สถานะการสมัครของผู้ใช้ (ใช้ทำ “สมัครแล้ว/ยกเลิก/undo” ใน template)
+    my_reg = None
+    if request.user.is_authenticated:
+        my_reg = ActivityRegistration.objects.filter(
+            user=request.user,
+            post=post,
+        ).first()
+
+        # finalize pending ถ้าหมดเวลา (กันคนค้าง)
+        if my_reg and my_reg.status == ActivityRegistration.Status.CANCEL_PENDING:
+            my_reg.finalize_cancel_if_expired()
+            my_reg.refresh_from_db()
+
     context = {
         'post': post,
         'reviews': reviews,
         'avg_rating': avg_rating,
         'avg_rating_int': avg_rating_int,
         'review_count': review_count,
+        'my_reg': my_reg,
+        'active_reg_count': post.active_registrations_count(),
+        'is_full': post.is_full(),
     }
     return render(request, 'post/post_detail.html', context)
 
@@ -176,12 +211,11 @@ def toggle_save(request, post_id):
 # ------------------------------
 @login_required
 def liked_posts_view(request):
-    # ✅ ไม่แสดงโพสต์ที่ถูกซ่อน/ลบแล้ว
     liked_posts = request.user.liked_posts.filter(
         is_hidden=False,
         is_deleted=False,
     ).order_by('-created_at')
-    context = {'posts': liked_posts, 'title': 'กิจกรรมที่กดถูกใจ ❤️'}
+    context = {'posts': liked_posts, 'title': 'กิจกรรมที่กดถูกใจ '}
     return render(request, 'post/liked_posts.html', context)
 
 
@@ -190,12 +224,11 @@ def liked_posts_view(request):
 # ------------------------------
 @login_required
 def saved_posts_view(request):
-    # ✅ ไม่แสดงโพสต์ที่ถูกซ่อน/ลบแล้ว
     saved_posts = request.user.saved_posts.filter(
         is_hidden=False,
         is_deleted=False,
     ).order_by('-created_at')
-    context = {'posts': saved_posts, 'title': 'กิจกรรมที่บันทึกไว้ 🔖'}
+    context = {'posts': saved_posts, 'title': 'กิจกรรมที่บันทึกไว้ '}
     return render(request, 'post/saved_posts.html', context)
 
 

@@ -16,7 +16,7 @@
     <div class="admin-main-tabs d-flex">
       <a href="{% url 'approver_dashboard' %}?main=manage"
          class="admin-main-tab {% if main_tab|default:'manage' == 'manage' %}active{% endif %}">
-        จัดการบัญชี
+        จัดการ
       </a>
       <a href="{% url 'approver_dashboard' %}?main=approve"
          class="admin-main-tab {% if main_tab == 'approve' %}active{% endif %}">

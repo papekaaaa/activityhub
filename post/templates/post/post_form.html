@@ -14,10 +14,15 @@
 
     <!-- โปรไฟล์ตรงกลาง -->
     <div class="post-profile text-center my-3">
-      {% if request.user.profile and request.user.profile.profile_pic %}
-        <img src="{{ request.user.profile.profile_pic.url }}" class="profile-img" alt="profile" />
+      {% if request.user.profile.profile_picture %}
+        <img
+          src="{{ request.user.profile.profile_picture.url }}"
+          onerror="this.onerror=null;this.src='/media/profile_pics/default.webp';"
+          class="profile-img"
+          alt="profile"
+        />
       {% else %}
-        <img src="{% static 'images/default_profile.png' %}" class="profile-img" alt="profile" />
+        <img src="/media/profile_pics/default.webp" class="profile-img" alt="profile" />
       {% endif %}
     </div>
 
@@ -28,7 +33,7 @@
     {% endif %}
 
     <!-- ฟอร์มแก้ไข -->
-    <form method="post" enctype="multipart/form-data" class="px-4 pb-4">
+    <form method="post" enctype="multipart/form-data" class="px-4 pb-4" id="postForm">
       {% csrf_token %}
 
       <div class="post-body">
@@ -58,9 +63,11 @@
           <input
             type="datetime-local"
             name="event_date"
-            class="input-field mb-3"
-            value="{{ form.event_date.value|default_if_none:'' }}"
+            class="input-field mb-2 input-date"
+            step="60"
+            value="{% if form.event_date.value %}{% if 'T' in form.event_date.value %}{{ form.event_date.value }}{% else %}{{ post.event_date|date:'Y-m-d\\TH:i' }}{% endif %}{% elif post.event_date %}{{ post.event_date|date:'Y-m-d\\TH:i' }}{% endif %}"
           />
+          <div class="small text-muted mb-3">ระบบดึงวัน-เวลาจากข้อมูลเดิมให้อัตโนมัติ แก้เฉพาะที่ต้องการได้เลย</div>
 
           <!-- ค่าใช้จ่าย -->
           <input
@@ -83,13 +90,25 @@
           <!-- จำนวนคนที่รับสมัคร -->
           <input
             type="number"
+            id="slots_available"
             name="slots_available"
             placeholder="จำนวนคนที่รับสมัคร"
-            class="input-field mb-3"
-            min="1"
+            class="input-field"
+            min="0"
             value="{{ form.slots_available.value|default_if_none:'' }}"
             required
           />
+          <div class="d-flex align-items-center gap-2 mb-3 mt-2">
+            <input
+              class="form-check-input m-0"
+              type="checkbox"
+              id="slots_unlimited"
+              name="slots_unlimited"
+              {% if form.slots_available.value == '0' or post.slots_available == 0 %}checked{% endif %}
+            />
+            <label class="form-check-label" for="slots_unlimited">ไม่จำกัดจำนวน</label>
+            <small class="text-muted ms-2">(เลือกแล้วระบบจะตั้งค่าเป็นไม่จำกัด)</small>
+          </div>
 
           <!-- หมวดหมู่กิจกรรม -->
           <select name="category" class="input-field mb-3" required>
@@ -184,8 +203,17 @@
           </label>
         </div>
 
-        <!-- ปุ่ม บันทึก / ยกเลิก -->
+        <!-- ปุ่ม บันทึก / ยกเลิก + ✅ ปิดรับสมัคร -->
         <div class="d-flex gap-2">
+          {% if show_close_register_button %}
+            <form method="post" action="{% url 'post:close_registration' post.id %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-dark rounded-pill px-4 fw-semibold">
+                ปิดรับการสมัคร
+              </button>
+            </form>
+          {% endif %}
+
           <button type="button" class="btn-cancel" onclick="history.back()">ยกเลิก</button>
           <button type="submit" class="btn-save">บันทึก</button>
         </div>
@@ -291,6 +319,43 @@ document.addEventListener('DOMContentLoaded', function() {
     latInput.value = '';
     lngInput.value = '';
   });
+
+  // ====== ✅ ไม่จำกัดจำนวนรับสมัคร ======
+  const slotsInput = document.getElementById('slots_available');
+  const unlimitedChk = document.getElementById('slots_unlimited');
+  const form = document.getElementById('postForm');
+
+  function applyUnlimitedUI() {
+    if (!slotsInput || !unlimitedChk) return;
+
+    if (unlimitedChk.checked) {
+      slotsInput.value = "0";
+      slotsInput.min = "0";
+      slotsInput.required = false;
+      slotsInput.disabled = true;
+    } else {
+      if (slotsInput.value === "0") slotsInput.value = "";
+      slotsInput.min = "1";
+      slotsInput.required = true;
+      slotsInput.disabled = false;
+    }
+  }
+
+  if (slotsInput && unlimitedChk) {
+    if (slotsInput.value === "0") unlimitedChk.checked = true;
+    applyUnlimitedUI();
+
+    unlimitedChk.addEventListener('change', applyUnlimitedUI);
+
+    if (form) {
+      form.addEventListener('submit', () => {
+        if (unlimitedChk.checked) {
+          slotsInput.disabled = false; // ให้ส่งค่าลง backend
+          slotsInput.value = "0";
+        }
+      });
+    }
+  }
 });
 </script>
 
@@ -304,7 +369,7 @@ body {
 .post-card {
   background-color: #fff;
   width: 100%;
-  max-width: 1300px;  /* 👈 ให้ใหญ่กว่าหน้า create นิดหน่อย */
+  max-width: 1300px;
   border-radius: 22px;
   padding: 1.5rem 0 1rem;
 }
@@ -323,15 +388,10 @@ body {
   color: #777;
   font-size: 1.3rem;
 }
-.btn-close-custom:hover {
-  color: #000;
-}
+.btn-close-custom:hover { color: #000; }
 
 /* โปรไฟล์กลาง */
-.post-profile {
-  display: flex;
-  justify-content: center;
-}
+.post-profile { display: flex; justify-content: center; }
 .profile-img {
   width: 70px;
   height: 70px;
@@ -341,15 +401,8 @@ body {
 }
 
 /* layout ซ้าย-ขวา */
-.post-body {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2rem;
-}
-.post-left,
-.post-right {
-  flex: 1 1 360px;
-}
+.post-body { display: flex; flex-wrap: wrap; gap: 2rem; }
+.post-left, .post-right { flex: 1 1 360px; }
 
 /* ช่องกรอกข้อมูล */
 .input-field {
@@ -365,6 +418,9 @@ body {
   border-color: #000;
   box-shadow: 0 0 0 1px #000;
 }
+
+/* ทำช่องวันเวลาให้ดูใช้ง่ายขึ้น */
+.input-date { cursor: pointer; }
 
 /* แผนที่ */
 .map-box {
@@ -382,10 +438,7 @@ body {
   cursor: pointer;
   transition: transform 0.2s ease, color 0.2s ease;
 }
-.icon-group i:hover {
-  color: #000;
-  transform: scale(1.1);
-}
+.icon-group i:hover { color: #000; transform: scale(1.1); }
 
 /* checkbox label */
 .checkbox-label {
@@ -396,10 +449,7 @@ body {
 }
 
 /* footer ปุ่มล่าง */
-.post-footer {
-  border-top: 1px solid #eee;
-  padding-top: 1rem;
-}
+.post-footer { border-top: 1px solid #eee; padding-top: 1rem; }
 
 /* ปุ่มยกเลิก / บันทึก */
 .btn-cancel,
@@ -412,39 +462,21 @@ body {
 }
 
 /* ยกเลิกแดง */
-.btn-cancel {
-  background-color: #dc3545;
-  color: #fff;
-}
-.btn-cancel:hover {
-  background-color: #c82333;
-}
+.btn-cancel { background-color: #dc3545; color: #fff; }
+.btn-cancel:hover { background-color: #c82333; }
 
 /* บันทึกเขียว */
-.btn-save {
-  background-color: #28a745;
-  color: #fff;
-}
-.btn-save:hover {
-  background-color: #218838;
-}
+.btn-save { background-color: #28a745; color: #fff; }
+.btn-save:hover { background-color: #218838; }
 
 /* แผนที่: ช่องค้นหา */
-.map-search .form-control {
-  font-size: 0.9rem;
-}
+.map-search .form-control { font-size: 0.9rem; }
 
 /* responsive เล็ก */
 @media (max-width: 768px) {
-  .post-card {
-    border-radius: 0;
-  }
-  .post-header {
-    padding: 0 1rem 0.75rem;
-  }
-  .btn-close-custom {
-    right: 1rem;
-  }
+  .post-card { border-radius: 0; }
+  .post-header { padding: 0 1rem 0.75rem; }
+  .btn-close-custom { right: 1rem; }
 }
 </style>
 {% endblock %}
