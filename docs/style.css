@@ -1,0 +1,4 @@
+body{margin:0;font-family:system-ui;background:#0b1220;color:#fff}
+.container{width:min(900px,92vw);margin:0 auto;padding:48px 0}
+.btn{display:inline-block;margin-top:12px;padding:12px 16px;border-radius:12px;
+background:#ffcf5a;color:#111;text-decoration:none;font-weight:800}
