@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo  # ✅ เพิ่ม
 from users.models import User
 from post.models import Post
 from .models import ChatRoom, ChatMembership, ChatMessage
+from django.db.models import Max
 
 BKK_TZ = ZoneInfo("Asia/Bangkok")  # ✅ เพิ่ม
 
@@ -23,14 +24,18 @@ def inbox_view(request):
     กล่องข้อความ: แสดงทุกห้องแชทที่ user เป็นสมาชิก
     ทั้งแชทกลุ่มกิจกรรม และแชทส่วนตัว (DM)
     """
-    memberships = ChatMembership.objects.filter(
-        user=request.user
-    ).select_related('room', 'room__post')
+    # Query rooms where user is a member, annotate with last message time and order by it
+    rooms_qs = (
+        ChatRoom.objects
+        .filter(members=request.user)
+        .annotate(last_time=Max('messages__created_at'))
+        .select_related('post')
+        .order_by('-last_time', '-created_at')
+    )
 
     rooms_data = []
 
-    for m in memberships:
-        room = m.room
+    for room in rooms_qs:
         title = ''
         subtitle = ''
         avatar_url = None
@@ -56,30 +61,31 @@ def inbox_view(request):
             other_user = other_membership.user if other_membership else None
 
             if other_user:
-                title = other_user.get_full_name() or other_user.username
+                title = other_user.get_full_name() or other_user.email
                 subtitle = 'ข้อความส่วนตัว'
                 if hasattr(other_user, 'profile') and other_user.profile.profile_picture:
                     avatar_url = other_user.profile.profile_picture.url
-                link_url = reverse('chat:dm_chat', args=[other_user.id])
+                link_url = reverse('chat:dm_chat', args=[other_user.email])
             else:
                 title = 'แชทส่วนตัว'
                 subtitle = 'DM'
 
-        last_msg = ChatMessage.objects.filter(
-            room=room
-        ).order_by('-created_at').first()
+        # get last message quickly (room.messages is related_name)
+        last_msg = room.messages.order_by('-created_at').select_related('sender').first()
 
         if last_msg:
             content = last_msg.content or ''
             last_text = content[:60] + ('…' if len(content) > 60 else '')
-            # ✅ ให้ last_time เป็นเวลาไทยด้วย (กันหน้า inbox เพี้ยน)
+            # convert to Bangkok timezone for display
             last_time = localtime(last_msg.created_at, timezone=BKK_TZ)
         else:
             last_text = ''
+            # if annotated last_time exists, use it (should be equivalent), else None
             last_time = None
 
         rooms_data.append({
             'room': room,
+            'room_id': room.id,
             'title': title,
             'subtitle': subtitle,
             'avatar_url': avatar_url,
@@ -89,10 +95,7 @@ def inbox_view(request):
             'is_group': (room.room_type == 'GROUP'),
         })
 
-    rooms_data.sort(
-        key=lambda r: r['last_time'].timestamp() if r['last_time'] else 0,
-        reverse=True
-    )
+    # rooms_qs already ordered by last_time desc; keep current list order
 
     return render(request, 'chat/inbox.html', {'rooms': rooms_data})
 
@@ -152,12 +155,12 @@ def activity_chat_view(request, post_id):
 
 
 @login_required
-def dm_chat_view(request, user_id):
+def dm_chat_view(request, email):
     """
     แชทส่วนตัว (DM) ระหว่างเรา กับ user อีกคนหนึ่ง
     - ถ้าไม่มีห้อง จะสร้างห้องใหม่ + membership 2 คน
     """
-    other_user = get_object_or_404(User, id=user_id)
+    other_user = get_object_or_404(User, email=email)
 
     if other_user == request.user:
         return redirect('profile')
@@ -257,12 +260,12 @@ def upload_message_view(request, room_id):
     dt_local = localtime(msg.created_at, timezone=BKK_TZ)
 
     payload = {
-        "type": "chat_message",  # ✅ ให้ตรงกับ handler ใน consumer
+        "type": "chat_message",
         "message": msg.content or "",
-        "sender_id": request.user.id,
-        "sender_name": request.user.get_full_name() or request.user.username,
-        "created_at": dt_local.strftime("%d/%m/%Y %H:%M"),  # ✅ เวลาไทย
-        "created_at_iso": dt_local.isoformat(),             # ✅ เผื่อ JS ใช้
+        "sender_id": str(request.user.pk),
+        "sender_name": request.user.get_full_name() or str(request.user.pk),
+        "created_at": dt_local.strftime("%d/%m/%Y %H:%M"),
+        "created_at_iso": dt_local.isoformat(),
         "file_url": msg.attachment.url if msg.attachment else "",
         "file_name": (msg.attachment.name.split("/")[-1] if msg.attachment else ""),
         "is_image": is_image,
@@ -270,5 +273,35 @@ def upload_message_view(request, room_id):
 
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(f"chat_{room_id}", payload)
+
+    # ✅ แจ้งเตือนข้อความแชทใหม่
+    try:
+        from notifications.signals import notify_chat_message
+        notify_chat_message(request.user, room, text or "ส่งไฟล์แนบ")
+    except Exception:
+        pass
+
+    return JsonResponse({"ok": True})
+
+
+@login_required
+@require_POST
+def delete_chat_room_view(request, room_id):
+    """
+    ✅ ลบห้องแชทของตัวเอง (ไม่กระทบคนอื่น)
+    ลบ 2 ชั้น: ยืนยันจาก JS ก่อน แล้วค่อย POST
+    """
+    room = get_object_or_404(ChatRoom, id=room_id)
+    membership = ChatMembership.objects.filter(room=room, user=request.user).first()
+
+    if not membership:
+        return JsonResponse({"ok": False, "error": "not_member"}, status=403)
+
+    # ลบแค่ membership ของตัวเอง (ไม่ลบห้องจริง)
+    membership.delete()
+
+    # ถ้าห้องไม่มีสมาชิกเหลือ - ลบห้องจริง
+    if not ChatMembership.objects.filter(room=room).exists():
+        room.delete()
 
     return JsonResponse({"ok": True})

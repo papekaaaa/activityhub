@@ -34,13 +34,14 @@ def register_view(request):
 
         if form.is_valid():
             user = form.save()
+            # สร้าง Profile ทันทีหลัง user ถูกสร้าง
+            from users.models import Profile
+            Profile.objects.create(user=user)
             login(request, user)
-
             messages.success(
                 request,
                 f"สมัครสมาชิกสำเร็จ ยินดีต้อนรับ, {user.email}!"
             )
-
             return redirect('home:home')
     else:
         form = CustomUserCreationForm()

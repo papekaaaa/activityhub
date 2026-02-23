@@ -10,6 +10,10 @@ class Notification(models.Model):
         OWNER_STATUS_REMINDER = "OWNER_STATUS_REMINDER", "แจ้งเตือนสถานะผู้สมัคร (ผู้สร้างกิจกรรม)"
         OWNER_FULL = "OWNER_FULL", "แจ้งเตือนกิจกรรมเต็ม (ผู้สร้างกิจกรรม)"
         POST_UPDATED = "POST_UPDATED", "แจ้งเตือนเมื่อโพสต์มีการเปลี่ยนแปลง"
+        POST_DELETED = "POST_DELETED", "แจ้งเตือนเมื่อโพสต์ถูกลบ"
+        POST_HIDDEN = "POST_HIDDEN", "แจ้งเตือนเมื่อโพสต์ถูกซ่อน"
+        FOLLOWER_NEW_POST = "FOLLOWER_NEW_POST", "แจ้งเตือนเมื่อคนที่ติดตามโพสต์ใหม่"
+        CHAT_MESSAGE = "CHAT_MESSAGE", "แจ้งเตือนข้อความแชทใหม่"
         SYSTEM = "SYSTEM", "ระบบ"
 
     user = models.ForeignKey(

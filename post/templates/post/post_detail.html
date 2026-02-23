@@ -3,6 +3,15 @@
 
 {% block content %}
 <style>
+  .detail-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+
   .avatar-circle-40 {
     width: 40px;
     height: 40px;
@@ -46,17 +55,39 @@
       <div class="bg-white shadow-sm rounded-4 overflow-hidden position-relative">
 
         {% if post.image %}
-        <div class="w-100" style="max-height: 340px; overflow: hidden;">
+        <div class="w-100">
           <img
             src="{{ post.image.url }}"
             alt="{{ post.title }}"
-            class="w-100"
-            style="object-fit: cover;"
+            class="w-100 d-block"
           />
         </div>
         {% endif %}
 
-        <div class="p-4">
+        <!-- โปรไฟล์ผู้สร้าง มุมขวา -->
+        <div class="d-flex align-items-center justify-content-end px-4 pt-3">
+          <div class="text-end me-3">
+            <div class="fw-semibold" style="font-size: 1.05rem;">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</div>
+            <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
+          </div>
+          <a href="{% url 'profile_detail' post.organizer.email %}">
+            {% if post.organizer.profile.profile_picture %}
+              <img
+                src="{{ post.organizer.profile.profile_picture.url }}"
+                class="detail-avatar"
+                alt="{{ post.organizer.get_full_name }}"
+              />
+            {% else %}
+              <img
+                src="/media/profile_pics/default.webp"
+                class="detail-avatar"
+                alt="Default profile"
+              />
+            {% endif %}
+          </a>
+        </div>
+
+        <div class="p-4 pt-3">
 
           <div class="d-flex justify-content-between align-items-start mb-3">
             <div class="pe-3">
@@ -70,33 +101,12 @@
             </div>
 
             <div class="text-end">
-              <div class="d-flex align-items-center justify-content-end mb-1">
-                {% if post.organizer.profile.profile_picture %}
-                  <img
-                    src="{{ post.organizer.profile.profile_picture.url }}"
-                    class="avatar-circle-40 me-2"
-                    alt="{{ post.organizer.get_full_name }}"
-                  />
-                {% else %}
-                  <img
-                    src="/media/profile_pics/default.webp"
-                    class="avatar-circle-40 me-2"
-                    alt="Default profile"
-                  />
-                {% endif %}
-                <div class="text-start">
-                  <div class="fw-semibold">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</div>
-                  <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>
-                </div>
-              </div>
-
               {# ✅ ใช้ active_reg_count / is_full จาก view #}
               <div class="small text-muted">
-                เปิดรับ {{ active_reg_count }}/
                 {% if post.slots_available == 0 %}
-                  ไม่จำกัด
+                  ไม่จำกัดจำนวน
                 {% else %}
-                  {{ post.slots_available }}
+                  เปิดรับ {{ active_reg_count }}/{{ post.slots_available }}
                 {% endif %}
 
                 {% if active_reg_count > 0 %}
@@ -111,14 +121,9 @@
                 {% endif %}
               </div>
 
-              {% if is_full %}
+              {% if post.slots_available != 0 and is_full %}
                 <div class="mt-1">
                   <span class="badge bg-danger">เต็มแล้ว</span>
-                </div>
-              {% endif %}
-              {% if not post.allow_register %}
-                <div class="mt-1">
-                  <span class="badge bg-secondary">ปิดรับสมัคร</span>
                 </div>
               {% endif %}
             </div>
@@ -141,57 +146,59 @@
             <span>หมวดหมู่: {{ post.category }}</span>
           </div>
 
+          {% if has_chat_room and user_is_registered %}
           <a href="{% url 'chat:activity_chat' post.id %}"
             class="btn btn-outline-primary rounded-pill px-4 fw-semibold">
             แชทกิจกรรม
           </a>
+          {% endif %}
 
           <div class="d-flex justify-content-between align-items-center mt-2">
 
+            {% if post.schedule %}
             <button
               type="button"
               class="btn btn-link text-dark p-0 d-inline-flex align-items-center"
               id="openScheduleBtn"
             >
-              <i class="fa-solid fa-arrow-left me-2"></i> กำหนดการ
+              <i class="fa-regular fa-file-lines me-2" style="color:#2563eb;"></i> กำหนดการ
             </button>
+            {% endif %}
 
             <div class="d-flex align-items-center gap-3">
 
               {% if user.is_authenticated %}
-              <button
-                type="button"
-                class="btn btn-link p-0 like-btn"
-                data-id="{{ post.id }}"
-                aria-label="like"
-              >
-                {% if user in post.likes.all %}
-                  <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
-                {% else %}
-                  <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
-                {% endif %}
-              </button>
+                <button
+                  type="button"
+                  class="btn btn-link p-0 like-btn"
+                  data-id="{{ post.id }}"
+                  aria-label="like"
+                >
+                  {% if user in post.likes.all %}
+                    <i id="like-icon-{{ post.id }}" class="fas fa-heart fs-5 text-danger"></i>
+                  {% else %}
+                    <i id="like-icon-{{ post.id }}" class="far fa-heart fs-5"></i>
+                  {% endif %}
+                </button>
 
-              <a href="#comments" class="text-dark hide-comment-on-this-page" aria-label="comments">
-                <i class="fa-regular fa-comment fs-5"></i>
-              </a>
+                <a href="#comments" class="text-dark hide-comment-on-this-page" aria-label="comments">
+                  <i class="fa-regular fa-comment fs-5"></i>
+                </a>
 
-              <button
-                type="button"
-                class="btn btn-link p-0 save-btn"
-                data-id="{{ post.id }}"
-                aria-label="save"
-              >
-                {% if user in post.saves.all %}
-                  <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
-                {% else %}
-                  <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
-                {% endif %}
-              </button>
-              {% endif %}
+                <button
+                  type="button"
+                  class="btn btn-link p-0 save-btn"
+                  data-id="{{ post.id }}"
+                  aria-label="save"
+                >
+                  {% if user in post.saves.all %}
+                    <i id="save-icon-{{ post.id }}" class="fas fa-bookmark fs-5 text-primary"></i>
+                  {% else %}
+                    <i id="save-icon-{{ post.id }}" class="far fa-bookmark fs-5"></i>
+                  {% endif %}
+                </button>
 
-              {# ✅ ปุ่มสมัคร/สถานะสมัคร #}
-              {% if user.is_authenticated %}
+                {# ปุ่มสมัคร / สถานะการสมัคร (สำหรับผู้ที่ล็อกอิน) #}
                 {% if my_reg and my_reg.status == "ACTIVE" %}
                   <span class="badge bg-success">สมัครไปแล้ว</span>
 
@@ -205,17 +212,24 @@
                   </button>
 
                 {% elif my_reg and my_reg.status == "CANCEL_PENDING" %}
-                  <span class="badge bg-warning text-dark">รอยืนยันยกเลิก</span>
+                  <span class="badge bg-warning text-dark">กำลังนับถอยหลังยกเลิก</span>
+                  <span id="cancelCountdown" class="badge bg-dark text-white ms-1 fw-bold"></span>
 
-                  <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline">
+                  <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline" id="undoCancelForm">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold">
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold" id="undoCancelBtn">
                       ยกเลิกการดำเนินการ (Undo)
                     </button>
                   </form>
 
                 {% elif my_reg and my_reg.status == "CANCELED" %}
                   <span class="badge bg-secondary">ยกเลิกแล้ว</span>
+                  {% if cooldown_until_iso %}
+                    <span class="text-muted small ms-2">
+                      <i class="fa-solid fa-clock me-1"></i>สมัครใหม่ได้ในอีก
+                      <span id="cooldownCountdown" class="fw-semibold text-danger"></span>
+                    </span>
+                  {% endif %}
 
                 {% else %}
                   {% if post.allow_register and not is_full %}
@@ -225,16 +239,13 @@
                     >
                       สมัคร
                     </a>
-                  {% elif is_full %}
+                  {% elif post.slots_available != 0 and is_full %}
                     <button type="button" class="btn btn-secondary rounded-pill px-4 fw-semibold" disabled>
                       เต็มแล้ว
                     </button>
-                  {% else %}
-                    <button type="button" class="btn btn-secondary rounded-pill px-4 fw-semibold" disabled>
-                      ปิดรับสมัครแล้ว
-                    </button>
                   {% endif %}
                 {% endif %}
+
               {% else %}
                 {% if post.allow_register and not is_full %}
                   <a
@@ -243,6 +254,10 @@
                   >
                     สมัคร
                   </a>
+                {% elif post.slots_available != 0 and is_full %}
+                  <button type="button" class="btn btn-secondary rounded-pill px-4 fw-semibold" disabled>
+                    เต็มแล้ว
+                  </button>
                 {% endif %}
               {% endif %}
             </div>
@@ -403,24 +418,26 @@
         class="btn btn-link text-dark p-0 me-2"
         id="closeScheduleBack"
       >
-        <i class="fa-solid fa-arrow-left"></i>
+        ย้อนกลับ
       </button>
       <h5 class="fw-bold mb-0">กำหนดการกิจกรรม</h5>
     </div>
 
     {% if post.schedule %}
-      <div class="mb-3 text-center">
-        <img
-          src="{{ post.schedule.url }}"
-          alt="กำหนดการกิจกรรม"
-          class="img-fluid rounded"
-        />
-      </div>
+      <div class="mb-3" style="background: #e8f4fd; border: 1px solid #b8daff; border-radius: 14px; padding: 1.5rem;">
+        <div class="text-center">
+          <img
+            src="{{ post.schedule.url }}"
+            alt="กำหนดการกิจกรรม"
+            class="img-fluid rounded"
+          />
+        </div>
 
-      <div class="text-center mt-2">
-        <a href="{{ post.schedule.url }}" class="btn btn-outline-secondary btn-sm" download>
-          ดาวน์โหลดกำหนดการ
-        </a>
+        <div class="text-center mt-3">
+          <a href="{{ post.schedule.url }}" class="btn btn-primary btn-sm rounded-pill px-4" download>
+            <i class="fa-solid fa-download me-1"></i> ดาวน์โหลดกำหนดการ
+          </a>
+        </div>
       </div>
     {% else %}
       <p class="text-muted small mb-0">
@@ -579,6 +596,68 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // ✅ Countdown 5 นาที สำหรับ undo ยกเลิกกิจกรรม
+  const cancelUndoUntilISO = "{{ cancel_undo_until_iso|escapejs }}";
+  if (cancelUndoUntilISO) {
+    const deadline = new Date(cancelUndoUntilISO).getTime();
+    const countdownEl = document.getElementById('cancelCountdown');
+    const undoBtn = document.getElementById('undoCancelBtn');
+    const undoForm = document.getElementById('undoCancelForm');
+
+    let countdownInterval = setInterval(() => {
+      const now = Date.now();
+      const diff = deadline - now;
+      if (diff <= 0) {
+        if (countdownEl) countdownEl.textContent = '00:00';
+        if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'หมดเวลา'; }
+        clearInterval(countdownInterval);
+        // refresh เฉพาะเมื่อหมดเวลา
+        location.reload();
+        return;
+      }
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (countdownEl) {
+        countdownEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+      }
+    }, 1000);
+  }
+
+  // ✅ Cooldown countdown สำหรับ CANCELED (รอสมัครใหม่)
+  const cooldownUntilISO = "{{ cooldown_until_iso|escapejs }}";
+  if (cooldownUntilISO) {
+    const cdDeadline = new Date(cooldownUntilISO).getTime();
+    const cdEl = document.getElementById('cooldownCountdown');
+
+    let cooldownInterval = setInterval(() => {
+      const now = Date.now();
+      const diff = cdDeadline - now;
+      if (diff <= 0) {
+        if (cdEl) cdEl.textContent = '';
+        clearInterval(cooldownInterval);
+        // refresh เฉพาะเมื่อหมดเวลา
+        location.reload();
+        return;
+      }
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (cdEl) {
+        cdEl.textContent = (hrs > 0 ? hrs + ' ชม. ' : '') + mins + ' นาที ' + secs + ' วินาที';
+      }
+    }, 1000);
+  }
 });
 </script>
 {% endblock %}
+
+{# เงื่อนไขแสดงฟอร์มรีวิว: เฉพาะผู้สมัคร (ACTIVE) และหลังวันกิจกรรมเท่านั้น #}
+{% if not post.is_deleted and my_reg and my_reg.status == 'ACTIVE' %}
+  {% if post.date and post.date < now or post.event_date and post.event_date < now %}
+    <div class="mt-4">
+      <h6 class="fw-bold mb-2">รีวิวกิจกรรมนี้</h6>
+      {% include 'activity_register/review_form.html' %}
+    </div>
+  {% endif %}
+{% endif %}

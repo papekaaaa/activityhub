@@ -190,15 +190,22 @@ def register_activity(request, post_id):
         if session_data:
             form = ActivityRegistrationForm(initial=session_data)
         else:
-            last_reg = (
-                ActivityRegistration.objects.filter(user=request.user)
-                .order_by("-id")
-                .first()
-            )
-            if last_reg:
-                form = ActivityRegistrationForm(instance=last_reg)
-            else:
-                form = ActivityRegistrationForm()
+            # Prefill from user profile if available
+            profile = getattr(request.user, 'profile', None)
+            initial = {}
+            if profile:
+                initial = {
+                    'first_name': request.user.first_name,
+                    'last_name': request.user.last_name,
+                    'nickname': profile.nickname,
+                    'birth_date': profile.birth_date,
+                    'gender': profile.gender,
+                    'current_address': profile.address,
+                    'phone': profile.phone or profile.phone_number,
+                    'email': request.user.email,
+                    'contact_channel': profile.contact_info,
+                }
+            form = ActivityRegistrationForm(initial=initial)
 
     # GET: ส่งข้อมูลเตือนชนเวลา/วันเดียวกันไป template (ถ้าคุณจะโชว์)
     if conflict_post:
@@ -341,6 +348,16 @@ def joined_activities(request):
         .order_by("-event_date")
     )
 
+    # ✅ กิจกรรมที่เคยลงทะเบียน (รวมที่ถูกลบ เพื่อแสดงสถานะ)
+    registered_posts = (
+        Post.objects.filter(
+            registrations__user=request.user,
+            registrations__status=ActivityRegistration.Status.ACTIVE,
+        )
+        .distinct()
+        .order_by("-event_date")
+    )
+
     user_reviews = ActivityReview.objects.filter(
         user=request.user,
         post__in=joined_posts,
@@ -350,6 +367,7 @@ def joined_activities(request):
     context = {
         "joined_posts": joined_posts,
         "reviewed_post_ids": reviewed_post_ids,
+        "registered_posts": registered_posts,
     }
     return render(request, "activity_register/joined_activities.html", context)
 
@@ -374,15 +392,22 @@ def review_activity(request, post_id):
         messages.error(request, "ยังไม่สามารถรีวิวได้ ต้องรอให้กิจกรรมจบก่อน")
         return redirect("activity_register:joined_activities")
 
-    has_registered = ActivityRegistration.objects.filter(
-        post=post,
-        user=request.user,
-        status=ActivityRegistration.Status.ACTIVE,  # ✅ ต้องเป็น ACTIVE
-    ).exists()
 
-    if not has_registered:
-        messages.error(request, "คุณยังไม่ได้เข้าร่วมกิจกรรมนี้ จึงไม่สามารถรีวิวได้")
-        return redirect("activity_register:joined_activities")
+    # ✅ เงื่อนไขใหม่: ถ้า slots_available == 0 (ไม่จำกัดจำนวน) ให้ทุกคนรีวิวได้หลังวันกิจกรรม
+    if post.slots_available == 0:
+        pass  # ทุกคนรีวิวได้
+    else:
+        has_any_registration = ActivityRegistration.objects.filter(post=post).exists()
+        if has_any_registration or post.allow_register:
+            # โพสต์มีระบบสมัคร -> ต้องเช็คว่าผู้ใช้สมัครแล้ว
+            has_registered = ActivityRegistration.objects.filter(
+                post=post,
+                user=request.user,
+                status=ActivityRegistration.Status.ACTIVE,
+            ).exists()
+            if not has_registered:
+                messages.error(request, "คุณยังไม่ได้เข้าร่วมกิจกรรมนี้ จึงไม่สามารถรีวิวได้")
+                return redirect("activity_register:joined_activities")
 
     review, created = ActivityReview.objects.get_or_create(
         post=post,
@@ -394,7 +419,7 @@ def review_activity(request, post_id):
         if form.is_valid():
             form.save()
             messages.success(request, "บันทึกรีวิวเรียบร้อยแล้ว")
-            return redirect("activity_register:joined_activities")
+            return redirect("post:post_detail", post_id=post.id)
     else:
         form = ActivityReviewForm(instance=review)
 

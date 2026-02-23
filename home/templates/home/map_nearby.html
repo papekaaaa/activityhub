@@ -32,6 +32,50 @@
         >
           ใช้ตำแหน่งปัจจุบัน
         </button>
+
+        <button
+          id="togglePinDistanceBtn"
+          type="button"
+          class="btn btn-outline-secondary fw-semibold px-3"
+          title="ปักหมุดวัดระยะทาง"
+        >
+          <i class="fa-solid fa-map-pin me-1"></i> ปักหมุดวัดระยะ
+        </button>
+
+        <a
+          id="showAllEventsBtn"
+          href="javascript:void(0)"
+          class="btn btn-outline-primary fw-semibold px-3"
+          title="ดูตำแหน่งกิจกรรมทั้งหมด"
+        >
+          <i class="fa-solid fa-map-location-dot me-1"></i> กิจกรรมทั้งหมด
+        </a>
+      </div>
+
+      <!-- ส่วนปักหมุดวัดระยะ (ซ่อนเริ่มต้น) -->
+      <div id="pinDistancePanel" class="border rounded-3 p-3 mb-2" style="display: none; background: #f8f9fa;">
+        <h6 class="fw-bold mb-2"><i class="fa-solid fa-map-pin me-1"></i> วัดระยะทางระหว่าง 2 จุด</h6>
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label small mb-1 fw-semibold">จุดที่ 1 (ตำแหน่งของคุณ)</label>
+            <div class="d-flex gap-2">
+              <input id="pinSearch1" type="text" class="form-control form-control-sm" placeholder="ค้นหาตำแหน่งจุดที่ 1" />
+              <button id="pinSearchBtn1" class="btn btn-sm btn-primary px-3" type="button">ค้นหา</button>
+            </div>
+            <small id="pinStatus1" class="text-muted">ใช้ตำแหน่งปัจจุบันหรือค้นหาสถานที่</small>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label small mb-1 fw-semibold">จุดที่ 2 (ค้นหาหรือคลิกบนแผนที่)</label>
+            <div class="d-flex gap-2">
+              <input id="pinSearch2" type="text" class="form-control form-control-sm" placeholder="ค้นหาตำแหน่งจุดที่ 2" />
+              <button id="pinSearchBtn2" class="btn btn-sm btn-primary px-3" type="button">ค้นหา</button>
+            </div>
+            <small id="pinStatus2" class="text-muted">ค้นหาหรือคลิกบนแผนที่เพื่อปักหมุดจุดที่ 2</small>
+          </div>
+          <div class="col-md-2 text-center">
+            <div id="pinDistanceResult" class="fw-bold text-primary fs-5">— กม.</div>
+          </div>
+        </div>
       </div>
 
       <small id="locationStatus" class="text-muted d-block mb-2">
@@ -132,6 +176,10 @@
     });
 
     let myMarker = null;
+    let pinMode = false;
+    let pinMarker2 = null;
+    let pinLine = null;
+    let myLatLng = null;  // เก็บตำแหน่งปัจจุบัน
 
     // --------------------- Haversine ---------------------------
     function haversineKm(lat1, lon1, lat2, lon2) {
@@ -201,6 +249,12 @@
         myMarker = L.marker([lat, lng], { icon: myLocationIcon }).addTo(map);
       }
       myMarker.bindPopup(label || "ตำแหน่งของคุณ").openPopup();
+      myLatLng = { lat, lng };
+
+      // อัปเดตสถานะจุดที่ 1
+      document.getElementById('pinStatus1').textContent = 'ตำแหน่งจุดที่ 1: ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+      if (pinMarker2) recalcPinDistance();
+
       updateNearby(lat, lng);
     }
 
@@ -284,6 +338,177 @@
       if (e.key === "Enter") {
         e.preventDefault();
         searchLocation();
+      }
+    });
+
+    // --------------------- ปักหมุดวัดระยะ ----------------
+    const pinPanel = document.getElementById('pinDistancePanel');
+    const togglePinBtn = document.getElementById('togglePinDistanceBtn');
+
+    togglePinBtn.addEventListener('click', () => {
+      pinMode = !pinMode;
+      pinPanel.style.display = pinMode ? 'block' : 'none';
+      togglePinBtn.classList.toggle('btn-outline-secondary', !pinMode);
+      togglePinBtn.classList.toggle('btn-secondary', pinMode);
+      togglePinBtn.classList.toggle('text-white', pinMode);
+
+      if (!pinMode) {
+        // ลบหมุดจุดที่ 2 และเส้น
+        if (pinMarker2) { map.removeLayer(pinMarker2); pinMarker2 = null; }
+        if (pinLine) { map.removeLayer(pinLine); pinLine = null; }
+        document.getElementById('pinSearch2').value = '';
+        document.getElementById('pinStatus2').textContent = 'ค้นหาหรือคลิกบนแผนที่เพื่อปักหมุดจุดที่ 2';
+        document.getElementById('pinDistanceResult').textContent = '— กม.';
+      } else if (myLatLng) {
+        document.getElementById('pinStatus1').textContent = 'ตำแหน่งจุดที่ 1: ' + myLatLng.lat.toFixed(4) + ', ' + myLatLng.lng.toFixed(4);
+      }
+    });
+
+    // เมื่อคลิกบนแผนที่ในโหมดปักหมุด
+    map.on('click', function (e) {
+      if (!pinMode) return;
+
+      const lat2 = e.latlng.lat;
+      const lng2 = e.latlng.lng;
+
+      document.getElementById('pinStatus2').textContent = 'ตำแหน่งจุดที่ 2: ' + lat2.toFixed(4) + ', ' + lng2.toFixed(4);
+
+      const pinIcon2 = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        shadowSize: [41, 41],
+      });
+
+      if (pinMarker2) {
+        pinMarker2.setLatLng([lat2, lng2]);
+      } else {
+        pinMarker2 = L.marker([lat2, lng2], { icon: pinIcon2 }).addTo(map);
+      }
+      pinMarker2.bindPopup('จุดที่ 2 (ปักหมุด)').openPopup();
+
+      recalcPinDistance();
+    });
+
+    function recalcPinDistance() {
+      const resultEl = document.getElementById('pinDistanceResult');
+      if (!myLatLng || !pinMarker2) {
+        resultEl.textContent = '— กม.';
+        return;
+      }
+
+      const lat2 = pinMarker2.getLatLng().lat;
+      const lng2 = pinMarker2.getLatLng().lng;
+      const d = haversineKm(myLatLng.lat, myLatLng.lng, lat2, lng2);
+      resultEl.textContent = d.toFixed(2) + ' กม.';
+
+      // วาดเส้นประ
+      if (pinLine) map.removeLayer(pinLine);
+      pinLine = L.polyline(
+        [[myLatLng.lat, myLatLng.lng], [lat2, lng2]],
+        { color: '#dc3545', weight: 2, dashArray: '6 8' }
+      ).addTo(map);
+    }
+
+    // --------------------- ค้นหาจุดที่ 1 (pin panel) ----------------
+    async function searchPinLocation(query, pointNum) {
+      if (!query) return;
+      const statusEl2 = document.getElementById('pinStatus' + pointNum);
+      statusEl2.textContent = 'กำลังค้นหา...';
+
+      try {
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(query);
+        const res = await fetch(url, { headers: { 'Accept-Language': 'th,en;q=0.8' } });
+        const data = await res.json();
+
+        if (!data.length) {
+          statusEl2.textContent = 'ไม่พบตำแหน่งจากคำค้นหานี้';
+          return;
+        }
+
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        const name = data[0].display_name || query;
+
+        if (pointNum === 1) {
+          setMyLocation(lat, lng, 'จุดที่ 1: ' + name);
+          statusEl2.textContent = 'จุดที่ 1: ' + name;
+        } else {
+          // ปักหมุดจุดที่ 2
+          const pinIcon2 = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34],
+            shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+            shadowSize: [41, 41],
+          });
+
+          if (pinMarker2) {
+            pinMarker2.setLatLng([lat, lng]);
+          } else {
+            pinMarker2 = L.marker([lat, lng], { icon: pinIcon2 }).addTo(map);
+          }
+          pinMarker2.bindPopup('จุดที่ 2: ' + name).openPopup();
+          statusEl2.textContent = 'จุดที่ 2: ' + name;
+          recalcPinDistance();
+        }
+      } catch (e) {
+        console.error(e);
+        statusEl2.textContent = 'เกิดข้อผิดพลาดในการค้นหา';
+      }
+    }
+
+    document.getElementById('pinSearchBtn1').addEventListener('click', () => {
+      searchPinLocation(document.getElementById('pinSearch1').value.trim(), 1);
+    });
+    document.getElementById('pinSearch1').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); searchPinLocation(e.target.value.trim(), 1); }
+    });
+    document.getElementById('pinSearchBtn2').addEventListener('click', () => {
+      searchPinLocation(document.getElementById('pinSearch2').value.trim(), 2);
+    });
+    document.getElementById('pinSearch2').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); searchPinLocation(e.target.value.trim(), 2); }
+    });
+
+    // --------------------- แสดงกิจกรรมทั้งหมด ----------------
+    const showAllBtn = document.getElementById('showAllEventsBtn');
+    const allEventsLayer = L.layerGroup();
+    let showingAll = false;
+
+    showAllBtn.addEventListener('click', () => {
+      showingAll = !showingAll;
+
+      if (showingAll) {
+        showAllBtn.classList.remove('btn-outline-primary');
+        showAllBtn.classList.add('btn-primary', 'text-white');
+
+        const bounds = [];
+        EVENTS.forEach(ev => {
+          const m = L.marker([ev.lat, ev.lng], { icon: myIcon }).addTo(allEventsLayer);
+          m.bindPopup(`<strong>${ev.title}</strong><br/>${ev.location || ''}<br/>${ev.date || ''}`);
+          bounds.push([ev.lat, ev.lng]);
+        });
+        allEventsLayer.addTo(map);
+
+        if (bounds.length) {
+          if (myLatLng) bounds.push([myLatLng.lat, myLatLng.lng]);
+          map.fitBounds(bounds, { padding: [40, 40] });
+        }
+
+        document.getElementById('nearbyCount').textContent = EVENTS.length;
+      } else {
+        showAllBtn.classList.remove('btn-primary', 'text-white');
+        showAllBtn.classList.add('btn-outline-primary');
+
+        allEventsLayer.clearLayers();
+        map.removeLayer(allEventsLayer);
+
+        // กลับไปแสดงเฉพาะ nearby
+        if (myLatLng) {
+          updateNearby(myLatLng.lat, myLatLng.lng);
+        }
       }
     });
   });

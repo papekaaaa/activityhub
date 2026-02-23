@@ -32,7 +32,10 @@ def profile_view(request):
         is_hidden=False
     ).order_by('-created_at')
 
-    profile = request.user.profile
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user)
 
     registrations = ActivityRegistration.objects.filter(
         user=request.user
@@ -44,13 +47,18 @@ def profile_view(request):
         'followers_count': profile.followers_count(),
         'following_count': profile.following_count(),
         'registrations': registrations,
+        'followers_list': profile.followers.select_related('user').all(),
+        'following_list': Profile.objects.filter(followers=profile).select_related('user'),
     }
     return render(request, 'users/profile.html', context)
 
 
 @login_required
 def profile_edit_view(request):
-    profile = request.user.profile
+    try:
+        profile = request.user.profile
+    except Profile.DoesNotExist:
+        profile = Profile.objects.create(user=request.user)
 
     if request.method == 'POST':
         user_form = UserUpdateForm(request.POST, instance=request.user)
@@ -79,13 +87,13 @@ def profile_edit_view(request):
 
 
 @login_required
-def profile_detail_view(request, user_id):
+def profile_detail_view(request, email):
     # ✅ ถ้ากดส่องโปรไฟล์แล้วเป็น "ตัวเอง" ให้ไปหน้าโปรไฟล์ตัวเองทันที
-    if request.user.id == user_id:
+    if request.user.email == email:
         return redirect('profile')
 
     # ✅ ไม่ให้ดูโปรไฟล์ของ user ที่ถูกลบ (ซ่อน)
-    target_user = get_object_or_404(User, id=user_id, is_deleted=False, is_active=True)
+    target_user = get_object_or_404(User, email=email, is_deleted=False, is_active=True)
     profile = target_user.profile
 
     posts = Post.objects.filter(
@@ -109,21 +117,23 @@ def profile_detail_view(request, user_id):
         'followers_count': profile.followers_count(),
         'following_count': profile.following_count(),
         'registrations': registrations,
+        'followers_list': profile.followers.select_related('user').all(),
+        'following_list': Profile.objects.filter(followers=profile).select_related('user'),
     }
     return render(request, 'users/profile_detail.html', context)
 
 
 @login_required
-def follow_toggle_view(request, user_id):
+def follow_toggle_view(request, email):
     # ✅ กัน follow บัญชีที่ถูกลบ
-    target_user = get_object_or_404(User, id=user_id, is_deleted=False, is_active=True)
+    target_user = get_object_or_404(User, email=email, is_deleted=False, is_active=True)
     target_profile = target_user.profile
     my_profile = request.user.profile
 
     if request.method != "POST":
         if request.headers.get("x-requested-with") == "XMLHttpRequest":
             return JsonResponse({"error": "POST required"}, status=400)
-        return redirect('profile_detail', user_id=user_id)
+        return redirect('profile_detail', email=email)
 
     is_following = False
     if my_profile != target_profile:
@@ -140,7 +150,7 @@ def follow_toggle_view(request, user_id):
             "followers_count": target_profile.followers_count(),
         })
 
-    return redirect('profile_detail', user_id=user_id)
+    return redirect('profile_detail', email=email)
 
 
 # ✅ เพิ่ม: ลบบัญชีตัวเอง (ยืนยัน 2 ชั้น + รหัสผ่าน) + logout ทันที

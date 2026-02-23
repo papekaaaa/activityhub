@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Avg, Q, Count, Exists, OuterRef, Value, BooleanField
 from post.models import Post
-from activity_register.models import ActivityReview
+from activity_register.models import ActivityReview, ActivityRegistration
+from chat.models import ChatRoom
 import json
 from django.contrib.auth import get_user_model
 from users.models import Profile  # ✅ เพิ่มเพื่อเช็คสถานะติดตาม
@@ -164,12 +165,37 @@ def post_detail_view(request, post_id):
         avg_rating = reviews.aggregate(avg=Avg('rating'))['avg'] or 0
         avg_rating_int = int(round(avg_rating))
 
+    # ✅ ดึงสถานะลงทะเบียนของ user (ถ้ามี)
+    my_reg = None
+    if request.user.is_authenticated:
+        my_reg = ActivityRegistration.objects.filter(
+            user=request.user,
+            post=post,
+        ).first()
+
+        if my_reg and my_reg.status == ActivityRegistration.Status.CANCEL_PENDING:
+            my_reg.finalize_cancel_if_expired()
+            my_reg.refresh_from_db()
+
+    has_chat_room = ChatRoom.objects.filter(post=post).exists()
+
+    user_is_registered = False
+    if my_reg and my_reg.status == 'ACTIVE':
+        user_is_registered = True
+
     context = {
         'post': post,
         'reviews': reviews,
         'review_count': review_count,
         'avg_rating': avg_rating,
         'avg_rating_int': avg_rating_int,
+        'my_reg': my_reg,
+        'active_reg_count': post.active_registrations_count(),
+        'is_full': post.is_full(),
+        'has_chat_room': has_chat_room,
+        'user_is_registered': user_is_registered,
+        'cancel_undo_until_iso': my_reg.cancel_undo_until.isoformat() if my_reg and my_reg.cancel_undo_until else '',
+        'cooldown_until_iso': my_reg.cooldown_until.isoformat() if my_reg and my_reg.cooldown_until and my_reg.status == 'CANCELED' else '',
     }
     return render(request, 'home/post_detail.html', context)
 

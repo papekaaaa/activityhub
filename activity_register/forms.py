@@ -6,7 +6,7 @@ class ActivityRegistrationForm(forms.ModelForm):
     class Meta:
         model = ActivityRegistration
         fields = [
-            'prefix', 'first_name', 'last_name',
+            'prefix', 'first_name', 'last_name', 'nickname',
             'birth_date', 'gender',
             'current_address', 'phone', 'email',
             'contact_channel',
@@ -18,6 +18,7 @@ class ActivityRegistrationForm(forms.ModelForm):
             'prefix': forms.Select(attrs={'class': 'form-select'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'nickname': forms.TextInput(attrs={'class': 'form-control'}),
             'birth_date': forms.DateInput(
                 attrs={'class': 'form-control', 'type': 'date'}
             ),

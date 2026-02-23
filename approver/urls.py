@@ -11,12 +11,12 @@ urlpatterns = [
     path("post/<int:post_id>/soft-delete/", views.soft_delete_post, name="soft_delete_post"),
 
     # ✅ ปิดการใช้งานบัญชี (โปรไฟล์)
-    path("user/<int:user_id>/deactivate/", views.deactivate_user, name="deactivate_user"),
+    path("user/<str:email>/deactivate/", views.deactivate_user, name="deactivate_user"),
     path("post/<int:post_id>/restore/", views.restore_post, name="restore_post"),
 
     # ✅ รายงาน (ผู้ใช้ทั่วไป)
     path("report/post/<int:post_id>/submit/", views.submit_post_report, name="submit_post_report"),
-    path("report/user/<int:user_id>/submit/", views.submit_user_report, name="submit_user_report"),
+    path("report/user/<str:user_email>/submit/", views.submit_user_report, name="submit_user_report"),
 
     # ✅ จัดการรายงาน (Approver/Admin)
     path("report/post/<int:report_id>/hide/", views.handle_post_report_hide, name="handle_post_report_hide"),

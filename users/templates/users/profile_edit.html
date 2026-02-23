@@ -37,20 +37,23 @@
                                        style="border: 1px solid #ccc; border-radius: 8px; padding: 6px 18px; font-size: 15px; font-weight: 500;">
                                     แก้ไขโปรไฟล์
                                 </label>
+                                {{ profile_form.profile_picture }}
                             </div>
-
-                            <!-- ใช้ field จากฟอร์ม (ถูก submit แน่นอน) -->
-                            {{ profile_form.profile_picture }}
                         </div>
 
                         <!-- Profile Form Section -->
                         <div class="col-md-7">
                             <div class="row g-3">
 
-                                <!-- ชื่อ-นามสกุล -->
-                                <div class="col-12">
-                                    <label class="form-label fw-semibold">ชื่อ-นามสกุล</label>
+                                <!-- ชื่อจริง -->
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">ชื่อ</label>
                                     {{ user_form.first_name }}
+                                </div>
+                                <!-- นามสกุล -->
+                                <div class="col-12 col-md-6">
+                                    <label class="form-label fw-semibold">นามสกุล</label>
+                                    {{ user_form.last_name }}
                                 </div>
 
                                 <!-- ชื่อเล่น / วันเกิด -->
@@ -60,7 +63,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">วันเดือนปีเกิด</label>
-                                    {{ profile_form.birth_date }}
+                                    <input type="text" id="birth_date" name="birth_date" class="form-control input-date" placeholder="เลือกวันเกิด" value="{{ profile_form.birth_date.value|default_if_none:'' }}" autocomplete="off" />
                                 </div>
 
                                 <!-- เพศ / เบอร์โทร -->
@@ -86,10 +89,11 @@
                                 </div>
 
                                 <!-- อีเมล -->
+                                <!-- อีเมล (แสดงเฉยๆ ห้ามแก้ไข) -->
                                 <div class="col-12">
                                     <label class="form-label fw-semibold">อีเมล</label>
-                                    <input type="email" name="email" value="{{ user.email }}" class="form-control" required
-                                        style="border: 1.5px solid #ccc; border-radius: 10px; padding: 8px 10px; font-size: 15px;">
+                                    <input type="email" name="email" value="{{ user.email }}" class="form-control" readonly disabled
+                                        style="border: 1.5px solid #ccc; border-radius: 10px; padding: 8px 10px; font-size: 15px; background:#f5f5f5; color:#888;">
                                 </div>
                             </div>
 
@@ -167,5 +171,28 @@
         background-color: #f1f1f1;
         border-color: #bbb;
     }
+    /* Flatpickr date input style */
+    .input-date { cursor: pointer; }
 </style>
+
+<!-- Flatpickr (Date Picker) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const birthDateInput = document.getElementById("birth_date");
+        if (birthDateInput) {
+            flatpickr(birthDateInput, {
+                enableTime: false,
+                locale: "th",
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "d/m/Y",
+                allowInput: true,
+                maxDate: "today"
+            });
+        }
+    });
+</script>
 {% endblock %}

@@ -71,10 +71,25 @@
     background-color: #e3f1ff;
     color: #000;
     word-break: break-word;
+    width: fit-content;
   }
 
   .chat-row.me .chat-bubble {
     background-color: #dbeafe;
+    margin-left: auto;
+  }
+
+  .chat-bubble-img {
+    padding: 0.3rem;
+    border-radius: 18px;
+    background-color: #e3f1ff;
+    width: fit-content;
+    overflow: hidden;
+  }
+
+  .chat-row.me .chat-bubble-img {
+    background-color: #dbeafe;
+    margin-left: auto;
   }
 
   /* ✅ ทำให้ "ชื่อซ้าย เวลา ขวา" ตรงทุกข้อความ */
@@ -135,7 +150,7 @@
   }
 
   .chat-attach-img {
-    max-width: 260px;
+    max-width: 220px;
     border-radius: 14px;
     display: block;
   }
@@ -221,11 +236,11 @@
 
               {% if msg.attachment %}
                 {% if msg.is_image %}
-                  <div class="chat-bubble">
+                  <div class="chat-bubble-img{% if msg.content %} mt-1{% endif %}">
                     <img src="{{ msg.attachment.url }}" class="chat-attach-img" alt="attachment">
                   </div>
                 {% else %}
-                  <div class="chat-bubble">
+                  <div class="chat-bubble{% if msg.content %} mt-1{% endif %}">
                     <a href="{{ msg.attachment.url }}" target="_blank" rel="noopener">
                       ไฟล์แนบ: {{ msg.attachment.name }}
                     </a>
@@ -277,6 +292,17 @@
           <i class="fa-solid fa-paper-plane"></i>
         </button>
       </form>
+
+      <!-- Image preview before send -->
+      <div id="filePreview" class="d-none px-3 py-2 border-top" style="background:#f9fafb;">
+        <div class="d-flex align-items-center gap-2">
+          <img id="filePreviewImg" src="" style="max-height:80px;border-radius:10px;object-fit:cover;" alt="preview">
+          <span id="filePreviewName" class="text-muted small text-truncate" style="max-width:200px;"></span>
+          <button type="button" class="btn btn-sm btn-outline-danger rounded-pill ms-auto" id="filePreviewClear">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -285,7 +311,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const roomId = {{ room.id }};
-  const currentUserId = {{ request.user.id }};
+  const currentUserId = "{{ request.user.id }}";
   const messagesEl = document.getElementById('chatMessages');
   const formEl = document.getElementById('chatForm');
   const inputEl = document.getElementById('chatMessageInput');
@@ -364,19 +390,23 @@ document.addEventListener('DOMContentLoaded', () => {
       bubbleContainer.appendChild(bubble);
     }
 
-    // ไฟล์แนบ
+    // ไฟล์แนบ (แยก bubble จากข้อความ)
     if (data.file_url) {
-      const attach = document.createElement('div');
-      attach.className = 'chat-bubble';
-
       if (data.is_image) {
+        const attach = document.createElement('div');
+        attach.className = 'chat-bubble-img';
+        if (data.message && String(data.message).trim() !== "") attach.classList.add('mt-1');
         attach.innerHTML = `<img src="${data.file_url}" class="chat-attach-img" alt="attachment">`;
+        bubbleContainer.appendChild(attach);
       } else {
+        const attach = document.createElement('div');
+        attach.className = 'chat-bubble';
+        if (data.message && String(data.message).trim() !== "") attach.classList.add('mt-1');
         attach.innerHTML = `<a href="${data.file_url}" target="_blank" rel="noopener">
           ไฟล์แนบ: ${escapeHtml(data.file_name || "download")}
         </a>`;
+        bubbleContainer.appendChild(attach);
       }
-      bubbleContainer.appendChild(attach);
     }
 
     // ✅ ชื่อซ้าย เวลาไทยขวา
@@ -406,6 +436,33 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Image preview logic
+  const previewDiv = document.getElementById('filePreview');
+  const previewImg = document.getElementById('filePreviewImg');
+  const previewName = document.getElementById('filePreviewName');
+  const previewClear = document.getElementById('filePreviewClear');
+
+  fileEl.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) { previewDiv.classList.add('d-none'); return; }
+    previewName.textContent = file.name;
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = e => { previewImg.src = e.target.result; previewImg.classList.remove('d-none'); };
+      reader.readAsDataURL(file);
+    } else {
+      previewImg.classList.add('d-none');
+    }
+    previewDiv.classList.remove('d-none');
+  });
+
+  previewClear.addEventListener('click', () => {
+    fileEl.value = '';
+    previewDiv.classList.add('d-none');
+    previewImg.src = '';
+    previewName.textContent = '';
+  });
+
   formEl.addEventListener('submit', async function(e) {
     const text = inputEl.value.trim();
     const file = fileEl.files[0];
@@ -427,6 +484,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         inputEl.value = '';
         fileEl.value = '';
+        previewDiv.classList.add('d-none');
+        previewImg.src = '';
+        previewName.textContent = '';
       }
       return;
     }

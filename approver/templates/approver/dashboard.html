@@ -50,17 +50,23 @@
         {% for u in accounts %}
           <div class="admin-row">
             <div class="flex-grow-1">
-              <a href="{% url 'profile_detail' u.id %}" class="admin-link">
-                {{ u.get_full_name|default:u.username }}
-              </a>
+              {% if u.email %}
+                <a href="{% url 'profile_detail' u.email %}" class="admin-link">
+                  {{ u.get_full_name|default:u.username }}
+                </a>
+              {% else %}
+                <span class="admin-link text-muted">(ไม่มีข้อมูลผู้ใช้)</span>
+              {% endif %}
               <div class="text-muted small">{{ u.email }}</div>
             </div>
             <div class="d-flex gap-2">
               <!-- ✅ ปุ่มลบบัญชี = ปิดการใช้งาน (ไม่ลบข้อมูลจริง) -->
-              <form action="{% url 'deactivate_user' u.id %}" method="post" style="margin: 0;">
-                {% csrf_token %}
-                <button type="submit" class="btn-admin-danger">ลบ</button>
-              </form>
+              {% if u.email %}
+                <form action="{% url 'deactivate_user' u.email %}" method="post" style="margin: 0;">
+                  {% csrf_token %}
+                  <button type="submit" class="btn-admin-danger">ลบ</button>
+                </form>
+              {% endif %}
             </div>
           </div>
         {% empty %}

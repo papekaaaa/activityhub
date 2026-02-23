@@ -21,7 +21,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        is_member = await self._is_member(user.id, self.room_id)
+        is_member = await self._is_member(user.pk, self.room_id)
         if not is_member:
             await self.close()
             return
@@ -46,7 +46,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not message:
             return
 
-        msg_obj = await self._create_message(user.id, self.room_id, message)
+        msg_obj = await self._create_message(user.pk, self.room_id, message)
 
         # ✅ บังคับเป็นเวลาไทย
         dt_local = localtime(msg_obj.created_at, timezone=BKK_TZ)
@@ -56,8 +56,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             {
                 'type': 'chat_message',
                 'message': msg_obj.content,
-                'sender_id': user.id,
-                'sender_name': user.get_full_name() or user.username,
+                'sender_id': str(user.pk),
+                'sender_name': user.get_full_name() or str(user.pk),
                 'created_at': dt_local.strftime('%d/%m/%Y %H:%M'),
                 'created_at_iso': dt_local.isoformat(),
                 'file_url': '',
@@ -65,6 +65,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'is_image': False,
             }
         )
+
+        # ✅ แจ้งเตือนข้อความแชทใหม่
+        await self._notify_chat(user.pk, self.room_id, message)
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
@@ -88,11 +91,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         ).exists()
 
     @database_sync_to_async
-    def _create_message(self, user_id, room_id, content):
-        user = User.objects.get(id=user_id)
+    def _create_message(self, user_pk, room_id, content):
+        user = User.objects.get(pk=user_pk)
         room = ChatRoom.objects.get(id=room_id)
         return ChatMessage.objects.create(
             room=room,
             sender=user,
             content=content,
         )
+
+    @database_sync_to_async
+    def _notify_chat(self, user_pk, room_id, message):
+        try:
+            from notifications.signals import notify_chat_message
+            user = User.objects.get(pk=user_pk)
+            room = ChatRoom.objects.get(id=room_id)
+            notify_chat_message(user, room, message)
+        except Exception:
+            pass

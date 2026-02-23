@@ -59,15 +59,16 @@
             value="{{ form.location.value|default_if_none:'' }}"
           />
 
-          <!-- วันที่จัดกิจกรรม -->
+          <!-- วันที่จัดกิจกรรม (Flatpickr) -->
           <input
-            type="datetime-local"
+            type="text"
+            id="event_date"
             name="event_date"
-            class="input-field mb-2 input-date"
-            step="60"
+            class="input-field mb-3"
+            placeholder="เลือกวันและเวลา"
             value="{% if form.event_date.value %}{% if 'T' in form.event_date.value %}{{ form.event_date.value }}{% else %}{{ post.event_date|date:'Y-m-d\\TH:i' }}{% endif %}{% elif post.event_date %}{{ post.event_date|date:'Y-m-d\\TH:i' }}{% endif %}"
+            required
           />
-          <div class="small text-muted mb-3">ระบบดึงวัน-เวลาจากข้อมูลเดิมให้อัตโนมัติ แก้เฉพาะที่ต้องการได้เลย</div>
 
           <!-- ค่าใช้จ่าย -->
           <input
@@ -226,6 +227,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- Flatpickr (DateTime Picker) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   // สร้างแผนที่เริ่มต้นที่อุบลราชธานี
@@ -319,6 +325,25 @@ document.addEventListener('DOMContentLoaded', function() {
     latInput.value = '';
     lngInput.value = '';
   });
+
+  // ====== ✅ DateTime Picker (Flatpickr) ======
+  const eventDateInput = document.getElementById("event_date");
+  if (eventDateInput) {
+    // normalize ค่าเดิม
+    if (eventDateInput.value && eventDateInput.value.includes(" ")) {
+      eventDateInput.value = eventDateInput.value.replace(" ", "T").slice(0,16);
+    }
+    flatpickr(eventDateInput, {
+      enableTime: true,
+      time_24hr: false,
+      minuteIncrement: 5,
+      locale: "th",
+      dateFormat: "Y-m-d\\TH:i",
+      altInput: true,
+      altFormat: "d/m/Y h:i K",
+      allowInput: true
+    });
+  }
 
   // ====== ✅ ไม่จำกัดจำนวนรับสมัคร ======
   const slotsInput = document.getElementById('slots_available');

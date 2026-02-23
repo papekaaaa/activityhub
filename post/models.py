@@ -172,4 +172,6 @@ class Post(models.Model):
             return self.registrations.count()
 
     def is_full(self):
+        if self.slots_available == 0:
+            return False
         return self.active_registrations_count() >= self.slots_available

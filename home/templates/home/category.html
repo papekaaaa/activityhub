@@ -27,15 +27,15 @@
           <p class="card-text text-muted">{{ post.description|truncatechars:100 }}</p>
         </div>
         <div class="card-footer bg-white border-0 d-flex align-items-center">
-          <a href="{% url 'profile_detail' post.organizer.id %}">
+          <a href="{% url 'profile_detail' post.organizer.email %}">
             {% if post.organizer.profile.profile_picture %}
-              <img src="{{ post.organizer.profile.profile_picture.url }}" class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+              <img src="{{ post.organizer.profile.profile_picture.url }}" class="rounded-circle me-2" width="36" height="36" style="object-fit: cover; aspect-ratio: 1/1;">
             {% else %}
-              <img src="{% static 'images/default_profile.png' %}" class="rounded-circle me-2" width="36" height="36" style="object-fit: cover;">
+              <img src="/media/profile_pics/default.webp" class="rounded-circle me-2" width="36" height="36" style="object-fit: cover; aspect-ratio: 1/1;">
             {% endif %}
           </a>
           <div>
-            <a href="{% url 'profile_detail' post.organizer.id %}" class="text-dark text-decoration-none fw-semibold hover-link">
+            <a href="{% url 'profile_detail' post.organizer.email %}" class="text-dark text-decoration-none fw-semibold hover-link">
               {{ post.organizer.first_name|default:post.organizer.email }}
             </a><br>
             <small class="text-muted">{{ post.created_at|date:"d M Y" }}</small>

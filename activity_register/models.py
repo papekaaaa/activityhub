@@ -50,6 +50,7 @@ class ActivityRegistration(models.Model):
     prefix = models.CharField(max_length=10, choices=PREFIX_CHOICES)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
+    nickname = models.CharField(max_length=100, blank=True)
     birth_date = models.DateField()
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
 
@@ -140,7 +141,7 @@ class ActivityRegistration(models.Model):
             return False
 
         self.status = self.Status.CANCELED
-        self.cooldown_until = now + timezone.timedelta(hours=1)
+        self.cooldown_until = now + timezone.timedelta(hours=2)
         self.save(update_fields=["status", "cooldown_until"])
         return True
 

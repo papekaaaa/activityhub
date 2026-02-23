@@ -26,17 +26,18 @@ def create_post(request):
             post.map_lng = request.POST.get('map_lng') or None
             post.save()
 
-            room = ChatRoom.objects.create(
-                room_type='GROUP',
-                name=post.title,
-                post=post,
-                created_by=request.user,
-            )
-            ChatMembership.objects.create(
-                room=room,
-                user=request.user,
-                is_admin=True,
-            )
+            if post.create_group:
+                room = ChatRoom.objects.create(
+                    room_type='GROUP',
+                    name=post.title,
+                    post=post,
+                    created_by=request.user,
+                )
+                ChatMembership.objects.create(
+                    room=room,
+                    user=request.user,
+                    is_admin=True,
+                )
 
             messages.success(request, 'สร้างกิจกรรมสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ')
             return redirect('home:home')
@@ -91,10 +92,34 @@ def post_update_view(request, post_id):
     if request.method == 'POST':
         form = PostForm(request.POST, request.FILES, instance=post)
         if form.is_valid():
+            old_create_group = post.create_group
+            old_allow_register = post.allow_register
+
             post = form.save(commit=False)
             post.map_lat = request.POST.get('map_lat') or None
             post.map_lng = request.POST.get('map_lng') or None
             post.save()
+
+            # ✅ ถ้าเปิด create_group ใหม่ (เดิมปิด) → สร้างห้องแชท
+            if post.create_group and not old_create_group:
+                existing_room = ChatRoom.objects.filter(room_type='GROUP', post=post).first()
+                if not existing_room:
+                    room = ChatRoom.objects.create(
+                        room_type='GROUP',
+                        name=post.title,
+                        post=post,
+                        created_by=request.user,
+                    )
+                    ChatMembership.objects.get_or_create(
+                        room=room,
+                        user=request.user,
+                        defaults={'is_admin': True},
+                    )
+
+            # ✅ ถ้าปิด create_group (เดิมเปิด) → ลบห้องแชท
+            if not post.create_group and old_create_group:
+                ChatRoom.objects.filter(room_type='GROUP', post=post).delete()
+
             messages.success(request, 'กิจกรรมของคุณได้รับการอัปเดตแล้ว!')
             return redirect('post:post_detail', post_id=post.id)
     else:
@@ -136,6 +161,13 @@ def post_delete_view(request, post_id):
 def post_detail_view(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
+    # ✅ ปิดรับสมัครอัตโนมัติเมื่อเลยวันที่จัดกิจกรรม
+    if post.allow_register and post.event_date:
+        from django.utils import timezone
+        if post.event_date < timezone.now():
+            post.allow_register = False
+            post.save(update_fields=['allow_register'])
+
     reviews = (
         post.activity_reviews
         .select_related('user')
@@ -159,6 +191,14 @@ def post_detail_view(request, post_id):
             my_reg.finalize_cancel_if_expired()
             my_reg.refresh_from_db()
 
+    # ✅ ตรวจสอบว่ามี chat room หรือไม่
+    has_chat_room = ChatRoom.objects.filter(post=post).exists()
+
+    # ✅ ตรวจสอบว่าผู้ใช้สมัครแล้วหรือยัง (สถานะ ACTIVE)
+    user_is_registered = False
+    if my_reg and my_reg.status == 'ACTIVE':
+        user_is_registered = True
+
     context = {
         'post': post,
         'reviews': reviews,
@@ -168,6 +208,10 @@ def post_detail_view(request, post_id):
         'my_reg': my_reg,
         'active_reg_count': post.active_registrations_count(),
         'is_full': post.is_full(),
+        'has_chat_room': has_chat_room,
+        'user_is_registered': user_is_registered,
+        'cancel_undo_until_iso': my_reg.cancel_undo_until.isoformat() if my_reg and my_reg.cancel_undo_until else '',
+        'cooldown_until_iso': my_reg.cooldown_until.isoformat() if my_reg and my_reg.cooldown_until and my_reg.status == 'CANCELED' else '',
     }
     return render(request, 'post/post_detail.html', context)
 

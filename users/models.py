@@ -45,7 +45,7 @@ class User(AbstractUser):
         ADMIN = 'ADMIN', 'Admin'
 
     username = None
-    email = models.EmailField(_('email address'), unique=True)
+    email = models.EmailField(_('email address'), unique=True, primary_key=True)
 
     # --- 2. เพิ่ม Field 'role' ---
     role = models.CharField(max_length=50, choices=Role.choices, default=Role.USER)
@@ -58,6 +58,12 @@ class User(AbstractUser):
     REQUIRED_FIELDS = []
 
     objects = CustomUserManager()
+
+    def get_full_name(self):
+        """
+        Return the first_name plus the last_name, with a space in between.
+        """
+        return f"{self.first_name} {self.last_name}".strip()
 
     def soft_delete(self):
         """
@@ -74,7 +80,7 @@ class User(AbstractUser):
 
 class Profile(models.Model):
     # เชื่อม Profile กับ User แบบหนึ่งต่อหนึ่ง
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True)
 
     # รูปโปรไฟล์ / cover
     profile_picture = models.ImageField(

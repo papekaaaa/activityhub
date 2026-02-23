@@ -153,7 +153,7 @@
               class="btn btn-link text-dark p-0 d-inline-flex align-items-center"
               id="openScheduleBtn"
             >
-              <i class="fa-solid fa-arrow-left me-2"></i> กำหนดการ
+              <i class="fa-regular fa-file-lines me-2" style="color:#2563eb;"></i> กำหนดการ
             </button>
 
             <div class="d-flex align-items-center gap-3">
@@ -206,16 +206,23 @@
 
                 {% elif my_reg and my_reg.status == "CANCEL_PENDING" %}
                   <span class="badge bg-warning text-dark">รอยืนยันยกเลิก</span>
+                  <span id="cancelCountdown" class="badge bg-dark text-white ms-1"></span>
 
-                  <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline">
+                  <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline" id="undoCancelForm">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold">
+                    <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold" id="undoCancelBtn">
                       ยกเลิกการดำเนินการ (Undo)
                     </button>
                   </form>
 
                 {% elif my_reg and my_reg.status == "CANCELED" %}
                   <span class="badge bg-secondary">ยกเลิกแล้ว</span>
+                  {% if cooldown_until_iso %}
+                    <span class="text-muted small ms-2">
+                      <i class="fa-solid fa-clock me-1"></i>สมัครใหม่ได้ในอีก
+                      <span id="cooldownCountdown" class="fw-semibold text-danger"></span>
+                    </span>
+                  {% endif %}
 
                 {% else %}
                   {% if post.allow_register and not is_full %}
@@ -409,18 +416,20 @@
     </div>
 
     {% if post.schedule %}
-      <div class="mb-3 text-center">
-        <img
-          src="{{ post.schedule.url }}"
-          alt="กำหนดการกิจกรรม"
-          class="img-fluid rounded"
-        />
-      </div>
+      <div class="mb-3" style="background: #e8f4fd; border: 1px solid #b8daff; border-radius: 14px; padding: 1.5rem;">
+        <div class="text-center">
+          <img
+            src="{{ post.schedule.url }}"
+            alt="กำหนดการกิจกรรม"
+            class="img-fluid rounded"
+          />
+        </div>
 
-      <div class="text-center mt-2">
-        <a href="{{ post.schedule.url }}" class="btn btn-outline-secondary btn-sm" download>
-          ดาวน์โหลดกำหนดการ
-        </a>
+        <div class="text-center mt-3">
+          <a href="{{ post.schedule.url }}" class="btn btn-primary btn-sm rounded-pill px-4" download>
+            <i class="fa-solid fa-download me-1"></i> ดาวน์โหลดกำหนดการ
+          </a>
+        </div>
       </div>
     {% else %}
       <p class="text-muted small mb-0">
@@ -578,6 +587,62 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('กรุณาระบุเหตุผลเพิ่มเติม (อื่นๆ)');
       }
     });
+  }
+
+  // ✅ Countdown 5 นาที สำหรับ undo ยกเลิกกิจกรรม
+  const cancelUndoUntilISO = "{{ cancel_undo_until_iso|escapejs }}";
+  if (cancelUndoUntilISO) {
+    const deadline = new Date(cancelUndoUntilISO).getTime();
+    const countdownEl = document.getElementById('cancelCountdown');
+    const undoBtn = document.getElementById('undoCancelBtn');
+    const undoForm = document.getElementById('undoCancelForm');
+
+    function updateCountdown() {
+      const now = Date.now();
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        if (countdownEl) countdownEl.textContent = '00:00';
+        if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'หมดเวลา'; }
+        setTimeout(() => location.reload(), 1200);
+        return;
+      }
+
+      const mins = Math.floor(diff / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (countdownEl) {
+        countdownEl.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+      }
+      requestAnimationFrame(() => setTimeout(updateCountdown, 250));
+    }
+    updateCountdown();
+  }
+
+  // ✅ Cooldown countdown สำหรับ CANCELED (รอสมัครใหม่)
+  const cooldownUntilISO = "{{ cooldown_until_iso|escapejs }}";
+  if (cooldownUntilISO) {
+    const cdDeadline = new Date(cooldownUntilISO).getTime();
+    const cdEl = document.getElementById('cooldownCountdown');
+
+    function updateCooldown() {
+      const now = Date.now();
+      const diff = cdDeadline - now;
+
+      if (diff <= 0) {
+        if (cdEl) cdEl.textContent = '';
+        setTimeout(() => location.reload(), 1000);
+        return;
+      }
+
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (cdEl) {
+        cdEl.textContent = (hrs > 0 ? hrs + ' ชม. ' : '') + mins + ' นาที ' + secs + ' วินาที';
+      }
+      requestAnimationFrame(() => setTimeout(updateCooldown, 500));
+    }
+    updateCooldown();
   }
 });
 </script>

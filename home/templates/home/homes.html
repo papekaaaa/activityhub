@@ -90,7 +90,7 @@
           <!-- บรรทัดบน: โปรไฟล์ + ติดตาม + เมนูรายงาน -->
           <div class="d-flex justify-content-between align-items-start mb-3">
             <div class="d-flex align-items-center">
-              <a href="{% url 'profile_detail' post.organizer.id %}">
+              <a href="{% url 'profile_detail' post.organizer.email %}">
                 {% if post.organizer.profile.profile_picture %}
                 <img
                   src="{{ post.organizer.profile.profile_picture.url }}"
@@ -122,7 +122,7 @@
                 type="button"
                 class="btn btn-sm rounded-pill px-3 follow-btn {% if post.is_following %}btn-primary{% else %}btn-outline-secondary{% endif %}"
                 data-following="{{ post.is_following|yesno:'true,false' }}"
-                data-url="{% url 'follow_toggle' post.organizer.id %}"
+                data-url="{% url 'follow_toggle' post.organizer.email %}"
               >
                 {% if post.is_following %}กำลังติดตาม{% else %}ติดตาม{% endif %}
               </button>
@@ -145,7 +145,8 @@
           <!-- เนื้อหา: รูปซ้าย / ข้อความขวา -->
           <div class="d-flex flex-column flex-md-row gap-3 align-items-stretch">
 
-            <!-- IMAGE LEFT -->
+            {% if post.image %}
+            <!-- IMAGE LEFT (แสดงเฉพาะเมื่อมีรูป) -->
             <div class="flex-shrink-0 ig-card-image mb-3 mb-md-0">
               <div class="post-media">
                 {% if post.images_list %}
@@ -161,23 +162,16 @@
                     </div>
                     {% endfor %}
                   </div>
-                {% elif post.image %}
-                  <!-- รูปเดี่ยวมาตรฐาน -->
+                {% else %}
                   <img
                     src="{{ post.image.url }}"
                     class="post-media-img"
                     alt="{{ post.title }}"
                   />
-                {% else %}
-                  <!-- ไม่มีรูป -->
-                  <div
-                    class="d-flex align-items-center justify-content-center rounded-3 bg-light border w-100 h-100"
-                  >
-                    <span class="text-muted">ยังไม่มีรูปภาพ</span>
-                  </div>
                 {% endif %}
               </div>
             </div>
+            {% endif %}
 
             <!-- TEXT RIGHT -->
             <div class="flex-grow-1 d-flex flex-column justify-content-between">
@@ -212,7 +206,7 @@
                 </p>
                 {% else %}
                 <p class="text-muted mb-3 post-detail-meta">
-                  👥 ไม่ได้ระบุจำนวนที่รับสมัคร
+                  👥 ไม่จำกัดจำนวนที่รับสมัคร
                 </p>
                 {% endif %}
 
@@ -249,6 +243,8 @@
                   </button>
                   <small id="like-count-{{ post.id }}">{{ post.likes.count }}</small>
 
+                  <!-- COMMENT + REVIEW ICON -->
+                  {# ลบปุ่มรีวิวออก: ให้รีวิวได้เฉพาะใน post detail #}
                   <!-- COMMENT + ✅ จำนวนรีวิว -->
                   <a
                     href="{% url 'post:post_detail' post.id %}#comments"
@@ -309,25 +305,55 @@
       {% if user.is_authenticated %}
       <div class="modal fade" id="reportPostModal-{{ post.id }}" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content" style="border-radius: 16px;">
-            <div class="modal-header">
-              <h5 class="modal-title">รายงาน</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+            <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem 1.5rem 1rem;">
+              <div class="text-white">
+                <h5 class="modal-title fw-bold mb-1"><i class="fa-solid fa-flag me-2"></i>รายงานโพสต์</h5>
+                <p class="mb-0 small opacity-75">ช่วยให้ชุมชนของเราปลอดภัยยิ่งขึ้น</p>
+              </div>
+              <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
             <form method="POST"
                   action="{% url 'submit_post_report' post.id %}"
                   enctype="multipart/form-data">
               {% csrf_token %}
-              <div class="modal-body">
-                <label class="form-label">เหตุผลในการรายงาน</label>
-                <input type="text" name="reason" class="form-control" required placeholder="Aa">
+              <div class="modal-body" style="padding: 1.5rem;">
+                <label class="form-label fw-semibold">เหตุผลในการรายงาน</label>
+                <textarea name="reason" class="form-control" rows="3" required placeholder="ระบุเหตุผล..."
+                          style="border-radius: 12px; border-color: #e0e0e0;"></textarea>
 
-                <label class="form-label mt-3">แนบรูปภาพ (ไม่บังคับ)</label>
-                <input type="file" name="evidence_image" class="form-control" accept="image/*">
+                <label class="form-label fw-semibold mt-3">แนบรูปภาพหลักฐาน (ไม่บังคับ)</label>
+                <input type="file" name="evidence_image" class="evidence-input-{{ post.id }}" accept="image/*" hidden>
+                <div class="d-flex align-items-center gap-2">
+                  <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="this.closest('.modal-body').querySelector('.evidence-input-{{ post.id }}').click()">
+                    <i class="fa-solid fa-camera me-1"></i> เลือกรูป
+                  </button>
+                  <span class="evidence-name-{{ post.id }} text-muted small text-truncate" style="max-width:200px;"></span>
+                </div>
+                <div class="evidence-preview-{{ post.id }} mt-2 d-none">
+                  <img class="evidence-img-{{ post.id }}" src="" style="max-height:100px;border-radius:12px;object-fit:cover;" alt="preview">
+                </div>
+                <script>
+                  document.querySelector('.evidence-input-{{ post.id }}').addEventListener('change', function() {
+                    const file = this.files[0];
+                    const nameEl = document.querySelector('.evidence-name-{{ post.id }}');
+                    const prevDiv = document.querySelector('.evidence-preview-{{ post.id }}');
+                    const prevImg = document.querySelector('.evidence-img-{{ post.id }}');
+                    if (file) {
+                      nameEl.textContent = file.name;
+                      if (file.type.startsWith('image/')) {
+                        const r = new FileReader(); r.onload = e => { prevImg.src = e.target.result; prevDiv.classList.remove('d-none'); }; r.readAsDataURL(file);
+                      } else { prevDiv.classList.add('d-none'); }
+                    } else { nameEl.textContent = ''; prevDiv.classList.add('d-none'); }
+                  });
+                </script>
               </div>
-              <div class="modal-footer">
-                <button type="submit" class="btn btn-success rounded-pill px-4">ส่ง</button>
+              <div class="modal-footer border-0 pt-0" style="padding: 0 1.5rem 1.5rem;">
+                <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+                <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">
+                  <i class="fa-solid fa-paper-plane me-1"></i> ส่งรายงาน
+                </button>
               </div>
             </form>
 

@@ -27,7 +27,7 @@ class ProfileUpdateForm(forms.ModelForm):
             'contact_info',
         ]
         widgets = {
-            'profile_picture': forms.ClearableFileInput(
+            'profile_picture': forms.FileInput(
                 attrs={
                     'id': 'id_profile_picture',
                     'style': 'display:none;',

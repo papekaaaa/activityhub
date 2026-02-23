@@ -157,9 +157,9 @@ def restore_post(request, post_id):
 # -----------------------------
 @login_required
 @roles_required(allowed_roles=[User.Role.APPROVER, User.Role.ADMIN])
-def deactivate_user(request, user_id):
+def deactivate_user(request, email):
     if request.method == "POST":
-        user = get_object_or_404(User, id=user_id)
+        user = get_object_or_404(User, email=email)
         user.is_active = False
         user.save()
         messages.success(request, f"ปิดการใช้งานบัญชีของ '{user.get_full_name() or user.username}' แล้ว")
@@ -193,13 +193,13 @@ def submit_post_report(request, post_id):
 # รายงานบัญชี (ต้องรายงานจากหน้าโปรไฟล์คนนั้น)
 # -----------------------------
 @login_required
-def submit_user_report(request, user_id):
+def submit_user_report(request, user_email):
     if request.method != "POST":
         return redirect(request.META.get("HTTP_REFERER", reverse("home:home")))
 
-    target_user = get_object_or_404(User, id=user_id)
+    target_user = get_object_or_404(User, email=user_email)
 
-    if target_user.id == request.user.id:
+    if target_user.email == request.user.email:
         messages.error(request, "รายงานตัวเองไม่ได้")
         return redirect(request.META.get("HTTP_REFERER", reverse("home:home")))
 

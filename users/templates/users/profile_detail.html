@@ -141,18 +141,22 @@
       </h3>
       <p class="text-muted mb-1">{{ target_user.email }}</p>
       <div class="d-flex justify-content-center gap-4 mb-3 text-muted small">
-        <span><strong id="followersCount">{{ followers_count }}</strong> ผู้ติดตาม</span>
-        <span><strong>{{ following_count }}</strong> กำลังติดตาม</span>
+        <a href="#" class="text-decoration-none text-muted" data-bs-toggle="modal" data-bs-target="#followersModal">
+          <strong id="followersCount">{{ followers_count }}</strong> ผู้ติดตาม
+        </a>
+        <a href="#" class="text-decoration-none text-muted" data-bs-toggle="modal" data-bs-target="#followingModal">
+          <strong>{{ following_count }}</strong> กำลังติดตาม
+        </a>
       </div>
 
-      {% if request.user.id != target_user.id %}
+      {% if request.user.email != target_user.email %}
       <div class="d-flex justify-content-center gap-2 mb-3">
 
         <!-- ✅ ปุ่มติดตาม (AJAX) -->
         <button
           type="button"
           class="btn follow-btn px-4 follow-toggle-btn"
-          data-url="{% url 'follow_toggle' target_user.id %}"
+          data-url="{% url 'follow_toggle' target_user.email %}"
           data-following="{{ is_following|yesno:'true,false' }}"
         >
           {% if is_following %}
@@ -162,7 +166,7 @@
           {% endif %}
         </button>
 
-        <a href="{% url 'chat:dm_chat' target_user.id %}"
+        <a href="{% url 'chat:dm_chat' target_user.email %}"
            class="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
            style="width:44px;height:44px;">
           <i class="fa-regular fa-comment"></i>
@@ -270,34 +274,138 @@
 </div>
 
 <!-- ✅ Modal รายงานบัญชี -->
-{% if request.user.is_authenticated and request.user.id != target_user.id %}
+{% if request.user.is_authenticated and request.user.email != target_user.email %}
 <div class="modal fade" id="reportUserModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content" style="border-radius: 16px;">
-      <div class="modal-header">
-        <h5 class="modal-title">รายงาน</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+      <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem 1.5rem 1rem;">
+        <div class="text-white">
+          <h5 class="modal-title fw-bold mb-1"><i class="fa-solid fa-flag me-2"></i>รายงานบัญชี</h5>
+          <p class="mb-0 small opacity-75">ช่วยให้ชุมชนของเราปลอดภัยยิ่งขึ้น</p>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
       <form method="POST"
-            action="{% url 'submit_user_report' target_user.id %}"
+            action="{% url 'submit_user_report' target_user.email %}"
             enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="modal-body">
-          <label class="form-label">เหตุผลในการรายงาน</label>
-          <input type="text" name="reason" class="form-control" required placeholder="Aa">
+        <div class="modal-body" style="padding: 1.5rem;">
+          <label class="form-label fw-semibold">เหตุผลในการรายงาน</label>
+          <textarea name="reason" class="form-control" rows="3" required placeholder="ระบุเหตุผล..."
+                    style="border-radius: 12px; border-color: #e0e0e0;"></textarea>
 
-          <label class="form-label mt-3">แนบรูปภาพ (ไม่บังคับ)</label>
-          <input type="file" name="evidence_image" class="form-control" accept="image/*">
+          <label class="form-label fw-semibold mt-3">แนบรูปภาพหลักฐาน (ไม่บังคับ)</label>
+          <input type="file" name="evidence_image" id="evidenceInputDetail" accept="image/*" hidden>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-3" onclick="document.getElementById('evidenceInputDetail').click()">
+              <i class="fa-solid fa-camera me-1"></i> เลือกรูป
+            </button>
+            <span id="evidenceFileNameDetail" class="text-muted small text-truncate" style="max-width:200px;"></span>
+          </div>
+          <div id="evidencePreviewDetail" class="mt-2 d-none">
+            <img id="evidencePreviewImgDetail" src="" style="max-height:100px;border-radius:12px;object-fit:cover;" alt="preview">
+          </div>
+          <script>
+            document.getElementById('evidenceInputDetail').addEventListener('change', function() {
+              const file = this.files[0];
+              const nameEl = document.getElementById('evidenceFileNameDetail');
+              const prevDiv = document.getElementById('evidencePreviewDetail');
+              const prevImg = document.getElementById('evidencePreviewImgDetail');
+              if (file) {
+                nameEl.textContent = file.name;
+                if (file.type.startsWith('image/')) {
+                  const r = new FileReader(); r.onload = e => { prevImg.src = e.target.result; prevDiv.classList.remove('d-none'); }; r.readAsDataURL(file);
+                } else { prevDiv.classList.add('d-none'); }
+              } else { nameEl.textContent = ''; prevDiv.classList.add('d-none'); }
+            });
+          </script>
         </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-success rounded-pill px-4">ส่ง</button>
+        <div class="modal-footer border-0 pt-0" style="padding: 0 1.5rem 1.5rem;">
+          <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+          <button type="submit" class="btn btn-danger rounded-pill px-4 fw-semibold">
+            <i class="fa-solid fa-paper-plane me-1"></i> ส่งรายงาน
+          </button>
         </div>
       </form>
     </div>
   </div>
 </div>
 {% endif %}
+
+<!-- Modal ผู้ติดตาม -->
+<div class="modal fade" id="followersModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+      <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.25rem 1.5rem 1rem;">
+        <div class="text-white">
+          <h5 class="modal-title fw-bold mb-0"><i class="fa-solid fa-users me-2"></i>ผู้ติดตาม</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        {% if followers_list %}
+          {% for fp in followers_list %}
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <a href="{% url 'profile_detail' fp.user.email %}">
+              {% if fp.profile_picture %}
+                <img src="{{ fp.profile_picture.url }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;" alt="">
+              {% else %}
+                <img src="/media/profile_pics/default.webp" style="width:44px;height:44px;border-radius:50%;object-fit:cover;" alt="">
+              {% endif %}
+            </a>
+            <div class="flex-grow-1">
+              <a href="{% url 'profile_detail' fp.user.email %}" class="text-decoration-none text-dark fw-semibold">
+                {{ fp.user.first_name }} {{ fp.user.last_name }}
+              </a>
+              <div class="text-muted small">{{ fp.user.email }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted text-center mb-0">ยังไม่มีผู้ติดตาม</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal กำลังติดตาม -->
+<div class="modal fade" id="followingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content" style="border-radius: 20px; overflow: hidden;">
+      <div class="modal-header border-0 pb-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.25rem 1.5rem 1rem;">
+        <div class="text-white">
+          <h5 class="modal-title fw-bold mb-0"><i class="fa-solid fa-user-plus me-2"></i>กำลังติดตาม</h5>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+        {% if following_list %}
+          {% for fp in following_list %}
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <a href="{% url 'profile_detail' fp.user.email %}">
+              {% if fp.profile_picture %}
+                <img src="{{ fp.profile_picture.url }}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;" alt="">
+              {% else %}
+                <img src="/media/profile_pics/default.webp" style="width:44px;height:44px;border-radius:50%;object-fit:cover;" alt="">
+              {% endif %}
+            </a>
+            <div class="flex-grow-1">
+              <a href="{% url 'profile_detail' fp.user.email %}" class="text-decoration-none text-dark fw-semibold">
+                {{ fp.user.first_name }} {{ fp.user.last_name }}
+              </a>
+              <div class="text-muted small">{{ fp.user.email }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted text-center mb-0">ยังไม่ได้ติดตามใคร</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

@@ -66,8 +66,9 @@
       {% if rooms %}
         <div class="list-group list-group-flush">
           {% for r in rooms %}
+            <div class="list-group-item chat-item d-flex align-items-center gap-3 border-0">
             <a href="{{ r.link_url }}"
-               class="list-group-item list-group-item-action chat-item d-flex align-items-center gap-3">
+               class="d-flex align-items-center gap-3 text-decoration-none text-dark flex-grow-1" style="min-width:0;">
               {% if r.avatar_url %}
                 <img src="{{ r.avatar_url }}" class="chat-avatar" alt="{{ r.title }}">
               {% else %}
@@ -101,6 +102,16 @@
                 {% endif %}
               </div>
             </a>
+
+            <!-- Delete chat room button -->
+            <form method="post" action="{% url 'chat:delete_chat_room' r.room_id %}" class="ms-2 flex-shrink-0"
+                  onsubmit="return confirm('ต้องการออกจากห้องแชทนี้หรือไม่?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;" title="ลบแชท">
+                <i class="fa-solid fa-trash-can"></i>
+              </button>
+            </form>
+            </div>
           {% endfor %}
         </div>
       {% else %}

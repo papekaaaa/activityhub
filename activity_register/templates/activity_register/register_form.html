@@ -45,7 +45,7 @@
     <form method="post" novalidate>
       {% csrf_token %}
 
-      <!-- แถว 1: คำนำหน้า + ชื่อ + นามสกุล -->
+      <!-- แถว 1: คำนำหน้า + ชื่อ + นามสกุล + ชื่อเล่น -->
       <div class="row g-3 mb-3">
         <div class="col-md-2">
           <label class="form-label">คำนำหน้า</label>
@@ -54,17 +54,24 @@
             <div class="invalid-feedback d-block">{{ err }}</div>
           {% endfor %}
         </div>
-        <div class="col-md-5">
+        <div class="col-md-3">
           <label class="form-label">ชื่อ</label>
           {{ form.first_name }}
           {% for err in form.first_name.errors %}
             <div class="invalid-feedback d-block">{{ err }}</div>
           {% endfor %}
         </div>
-        <div class="col-md-5">
+        <div class="col-md-3">
           <label class="form-label">นามสกุล</label>
           {{ form.last_name }}
           {% for err in form.last_name.errors %}
+            <div class="invalid-feedback d-block">{{ err }}</div>
+          {% endfor %}
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">ชื่อเล่น</label>
+          {{ form.nickname }}
+          {% for err in form.nickname.errors %}
             <div class="invalid-feedback d-block">{{ err }}</div>
           {% endfor %}
         </div>
