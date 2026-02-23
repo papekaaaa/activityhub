@@ -11,6 +11,8 @@ from .forms import ActivityRegistrationForm, ActivityReviewForm
 from .models import ActivityRegistration, ActivityReview
 from chat.models import ChatMembership, ChatRoom
 from post.models import Post
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 
 
 def _serialize_for_session(data: dict) -> dict:
@@ -75,10 +77,14 @@ def register_activity(request, post_id):
             return redirect("post:post_detail", post_id=post.id)
 
         # ถ้ายกเลิกแล้วแต่ยังติด cooldown
-        if existing.status == ActivityRegistration.Status.CANCELED and existing.cooldown_until and timezone.now() < existing.cooldown_until:
-            mins = int((existing.cooldown_until - timezone.now()).total_seconds() // 60) + 1
-            messages.error(request, f"คุณเพิ่งยกเลิกกิจกรรมนี้ สมัครใหม่ได้อีกประมาณ {mins} นาที")
-            return redirect("post:post_detail", post_id=post.id)
+        if existing.status == ActivityRegistration.Status.CANCELED:
+            # ถ้ายังอยู่ใน cooldown -> บล็อคการสมัคร
+            if existing.cooldown_until and timezone.now() < existing.cooldown_until:
+                mins = int((existing.cooldown_until - timezone.now()).total_seconds() // 60) + 1
+                messages.error(request, f"คุณเพิ่งยกเลิกกิจกรรมนี้ สมัครใหม่ได้อีกประมาณ {mins} นาที")
+                return redirect("post:post_detail", post_id=post.id)
+            # ถ้าหมด cooldown แล้ว ให้ผู้ใช้สามารถสมัครใหม่ได้ (รีใช้งาน record เดิม)
+            # เรจะไม่เปลี่ยนสถานะจนกว่าจะ POST และผู้ใช้ยืนยันการสมัคร
 
         # ACTIVE = สมัครไปแล้ว
         if existing.status == ActivityRegistration.Status.ACTIVE:
@@ -117,11 +123,27 @@ def register_activity(request, post_id):
 
         form = ActivityRegistrationForm(request.POST)
         if form.is_valid():
-            registration = form.save(commit=False)
-            registration.user = request.user
-            registration.post = post
-            registration.status = ActivityRegistration.Status.ACTIVE
-            registration.save()
+            # ถ้ามี existing CANCELED และ cooldown หมด ให้รี-activate record เดิม
+            if existing and existing.status == ActivityRegistration.Status.CANCELED and (not existing.cooldown_until or timezone.now() >= existing.cooldown_until):
+                # อัปเดตฟิลด์จาก form
+                for field, value in form.cleaned_data.items():
+                    setattr(existing, field, value)
+                existing.user = request.user
+                existing.post = post
+                existing.status = ActivityRegistration.Status.ACTIVE
+                existing.cancel_reason = ''
+                existing.cancel_reason_other = ''
+                existing.canceled_at = None
+                existing.cancel_undo_until = None
+                existing.cooldown_until = None
+                existing.save()
+                registration = existing
+            else:
+                registration = form.save(commit=False)
+                registration.user = request.user
+                registration.post = post
+                registration.status = ActivityRegistration.Status.ACTIVE
+                registration.save()
 
             # เก็บข้อมูลไว้ใน session สำหรับกรอกอัตโนมัติครั้งถัดไป
             request.session["register_profile"] = _serialize_for_session(
@@ -189,23 +211,40 @@ def register_activity(request, post_id):
     else:
         if session_data:
             form = ActivityRegistrationForm(initial=session_data)
+            # prevent editing email saved in session
+            try:
+                form.fields['email'].disabled = True
+            except Exception:
+                pass
         else:
-            # Prefill from user profile if available
-            profile = getattr(request.user, 'profile', None)
-            initial = {}
-            if profile:
-                initial = {
-                    'first_name': request.user.first_name,
-                    'last_name': request.user.last_name,
-                    'nickname': profile.nickname,
-                    'birth_date': profile.birth_date,
-                    'gender': profile.gender,
-                    'current_address': profile.address,
-                    'phone': profile.phone or profile.phone_number,
-                    'email': request.user.email,
-                    'contact_channel': profile.contact_info,
-                }
-            form = ActivityRegistrationForm(initial=initial)
+            # If there's an existing canceled registration with cooldown passed, prefill from that record
+            if existing and existing.status == ActivityRegistration.Status.CANCELED and (not existing.cooldown_until or timezone.now() >= existing.cooldown_until):
+                form = ActivityRegistrationForm(instance=existing)
+                try:
+                    form.fields['email'].disabled = True
+                except Exception:
+                    pass
+            else:
+                # Prefill from user profile if available
+                profile = getattr(request.user, 'profile', None)
+                initial = {}
+                if profile:
+                    initial = {
+                        'first_name': request.user.first_name,
+                        'last_name': request.user.last_name,
+                        'nickname': profile.nickname,
+                        'birth_date': profile.birth_date,
+                        'gender': profile.gender,
+                        'current_address': profile.address,
+                        'phone': profile.phone or profile.phone_number,
+                        'email': request.user.email,
+                        'contact_channel': profile.contact_info,
+                    }
+                form = ActivityRegistrationForm(initial=initial)
+                try:
+                    form.fields['email'].disabled = True
+                except Exception:
+                    pass
 
     # GET: ส่งข้อมูลเตือนชนเวลา/วันเดียวกันไป template (ถ้าคุณจะโชว์)
     if conflict_post:
@@ -287,6 +326,28 @@ def undo_cancel_activity(request, post_id):
     return redirect("post:post_detail", post_id=post.id)
 
 
+@login_required
+@require_POST
+def finalize_cancel_ajax(request, post_id):
+    """AJAX endpoint: finalize a CANCEL_PENDING registration if its undo window expired.
+    Returns JSON with new status and optional cooldown_until_iso.
+    """
+    post = get_object_or_404(Post, id=post_id)
+    reg = ActivityRegistration.objects.filter(user=request.user, post=post).first()
+    if not reg:
+        return JsonResponse({"error": "no_registration"}, status=400)
+
+    # If pending and expired, finalize
+    if reg.status == ActivityRegistration.Status.CANCEL_PENDING:
+        reg.finalize_cancel_if_expired()
+        reg.refresh_from_db()
+
+    return JsonResponse({
+        "status": reg.status,
+        "cooldown_until_iso": reg.cooldown_until.isoformat() if reg.cooldown_until else "",
+    })
+
+
 # -----------------------------
 # แก้ไขโปรไฟล์ข้อมูลสมัครกิจกรรม
 # -----------------------------
@@ -349,25 +410,41 @@ def joined_activities(request):
     )
 
     # ✅ กิจกรรมที่เคยลงทะเบียน (รวมที่ถูกลบ เพื่อแสดงสถานะ)
+    # รวมทุกรายการที่เคยลงทะเบียน (รวมยกเลิก) เพื่อแสดงสถานะประวัติ
     registered_posts = (
         Post.objects.filter(
             registrations__user=request.user,
-            registrations__status=ActivityRegistration.Status.ACTIVE,
         )
         .distinct()
         .order_by("-event_date")
     )
+
+    # map post_id -> registration object (latest) เพื่อใช้ใน template แสดงสถานะ
+    regs = ActivityRegistration.objects.filter(user=request.user).select_related('post').order_by('-id')
+    reg_map = {r.post_id: r for r in regs}
 
     user_reviews = ActivityReview.objects.filter(
         user=request.user,
         post__in=joined_posts,
     )
     reviewed_post_ids = {r.post_id for r in user_reviews}
+    # Exclude registrations that were canceled before the event from the "registered_posts" list
+    registered_posts_list = list(registered_posts)
+    filtered_registered = []
+    for p in registered_posts_list:
+        reg = reg_map.get(p.id)
+        if reg and reg.status == ActivityRegistration.Status.CANCELED:
+            # if canceled_at exists and happened before the event start, skip showing this history
+            if reg.canceled_at and p.event_date and reg.canceled_at < p.event_date:
+                continue
+        filtered_registered.append(p)
 
     context = {
         "joined_posts": joined_posts,
         "reviewed_post_ids": reviewed_post_ids,
-        "registered_posts": registered_posts,
+        "registered_posts": filtered_registered,
+        "reg_map": reg_map,
+        "reg_map_keys": set(reg_map.keys()),
     }
     return render(request, "activity_register/joined_activities.html", context)
 
@@ -378,6 +455,11 @@ def joined_activities(request):
 @login_required
 def review_activity(request, post_id):
     post = get_object_or_404(Post, id=post_id)
+
+    # If the post was deleted/hidden, do not allow review
+    if getattr(post, 'is_deleted', False) or getattr(post, 'is_hidden', False):
+        messages.error(request, "ไม่สามารถรีวิวได้ กิจกรรมนี้ถูกลบหรือซ่อนแล้ว")
+        return redirect("activity_register:joined_activities")
 
     today = timezone.localdate()
 

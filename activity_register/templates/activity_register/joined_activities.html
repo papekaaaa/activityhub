@@ -14,7 +14,7 @@
       {% for post in joined_posts %}
         <div class="list-group-item d-flex justify-content-between align-items-center">
           <div class="me-3">
-            {% if post.is_deleted %}
+            {% if post.is_deleted or post.is_hidden %}
               <span class="fw-bold text-danger">{{ post.title }} (กิจกรรมนี้ถูกลบไปแล้ว)</span>
             {% else %}
               <a href="{% url 'post:post_detail' post.id %}" class="fw-semibold text-decoration-none text-dark">
@@ -27,14 +27,14 @@
           </div>
 
           {% if post.id in reviewed_post_ids %}
-            {% if post.is_deleted %}
+            {% if post.is_deleted or post.is_hidden %}
               <button class="btn btn-secondary btn-sm rounded-pill" disabled>รีวิว</button>
             {% else %}
               <a href="{% url 'activity_register:review_activity' post.id %}"
                  class="btn btn-success btn-sm rounded-pill">รีวิวแล้ว</a>
             {% endif %}
           {% else %}
-            {% if post.is_deleted %}
+            {% if post.is_deleted or post.is_hidden %}
               <button class="btn btn-secondary btn-sm rounded-pill" disabled>รีวิว</button>
             {% else %}
               <a href="{% url 'activity_register:review_activity' post.id %}"
@@ -59,21 +59,23 @@
               📅 {{ post.event_date|date:"j M Y" }} · 📍 {{ post.location }}
             </div>
           </div>
-
-          {% if post.id in reviewed_post_ids %}
-            {% if post.is_deleted %}
-              <button class="btn btn-secondary btn-sm rounded-pill" disabled>รีวิว</button>
-            {% else %}
-              <a href="{% url 'activity_register:review_activity' post.id %}"
-                 class="btn btn-success btn-sm rounded-pill">รีวิวแล้ว</a>
-            {% endif %}
+          {% comment %} show registration status badge by matching reg_map items {% endcomment %}
+          {% if post.id in reg_map_keys %}
+            {% for key, reg in reg_map.items %}
+              {% if key == post.id %}
+                {% if reg.status == 'ACTIVE' %}
+                  <span class="badge bg-success rounded-pill align-self-start">สมัครแล้ว</span>
+                {% elif reg.status == 'CANCEL_PENDING' %}
+                  <span class="badge bg-warning text-dark rounded-pill align-self-start">กำลังยกเลิก</span>
+                {% elif reg.status == 'CANCELED' %}
+                  <span class="badge bg-secondary rounded-pill align-self-start">ยกเลิกแล้ว</span>
+                {% else %}
+                  <span class="badge bg-light rounded-pill align-self-start">{{ reg.get_status_display }}</span>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
           {% else %}
-            {% if post.is_deleted %}
-              <button class="btn btn-secondary btn-sm rounded-pill" disabled>รีวิว</button>
-            {% else %}
-              <a href="{% url 'activity_register:review_activity' post.id %}"
-                 class="btn btn-warning btn-sm rounded-pill">รีวิว</a>
-            {% endif %}
+            <span class="badge bg-light rounded-pill align-self-start">-</span>
           {% endif %}
         </div>
         {% endif %}

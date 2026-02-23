@@ -15,26 +15,26 @@ class ActivityRegistrationForm(forms.ModelForm):
             'consent_personal_data', 'consent_terms',
         ]
         widgets = {
-            'prefix': forms.Select(attrs={'class': 'form-select'}),
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'prefix': forms.Select(attrs={'class': 'form-select', 'required': True}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'nickname': forms.TextInput(attrs={'class': 'form-control'}),
             'birth_date': forms.DateInput(
-                attrs={'class': 'form-control', 'type': 'date'}
+                attrs={'class': 'form-control input-date', 'type': 'text', 'id': 'birth_date', 'required': True}
             ),
-            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'gender': forms.Select(attrs={'class': 'form-select', 'required': True}),
             'current_address': forms.Textarea(
-                attrs={'class': 'form-control', 'rows': 2}
+                attrs={'class': 'form-control', 'rows': 2, 'required': True}
             ),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
-            'contact_channel': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'required': True}),
+            'contact_channel': forms.TextInput(attrs={'class': 'form-control', 'required': True}),
             'chronic_disease': forms.TextInput(attrs={'class': 'form-control'}),
             'food_allergy': forms.TextInput(attrs={'class': 'form-control'}),
             'drug_allergy': forms.TextInput(attrs={'class': 'form-control'}),
-            'field_ability': forms.Select(attrs={'class': 'form-select'}),
-            'consent_personal_data': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'consent_terms': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'field_ability': forms.Select(attrs={'class': 'form-select', 'required': True}),
+            'consent_personal_data': forms.CheckboxInput(attrs={'class': 'form-check-input', 'required': True}),
+            'consent_terms': forms.CheckboxInput(attrs={'class': 'form-check-input', 'required': True}),
         }
 
         error_messages = {

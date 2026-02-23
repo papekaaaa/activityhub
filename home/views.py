@@ -8,6 +8,7 @@ from chat.models import ChatRoom
 import json
 from django.contrib.auth import get_user_model
 from users.models import Profile  # ✅ เพิ่มเพื่อเช็คสถานะติดตาม
+from django.utils import timezone
 
 
 def index_view(request):
@@ -89,6 +90,21 @@ def home_view(request):
         ).distinct()
 
     posts = posts.order_by('-created_at')
+
+    # compute show_register for each post (hide when closed, full, or within 1 day of event)
+    posts = list(posts)
+    now = timezone.now()
+    for p in posts:
+        try:
+            within_cutoff = False
+            if p.event_date:
+                within_cutoff = now <= (p.event_date - timezone.timedelta(days=1))
+            else:
+                within_cutoff = True
+
+            p.show_register = bool(p.allow_register and within_cutoff and (not p.is_full()))
+        except Exception:
+            p.show_register = bool(p.allow_register)
 
     context = {
         'posts': posts,

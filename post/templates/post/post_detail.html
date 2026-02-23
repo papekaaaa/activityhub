@@ -168,6 +168,7 @@
             <div class="d-flex align-items-center gap-3">
 
               {% if user.is_authenticated %}
+                <div id="registrationStatusBlock" data-show-register="{{ post.show_register|yesno:'true,false' }}">
                 <button
                   type="button"
                   class="btn btn-link p-0 like-btn"
@@ -245,6 +246,7 @@
                     </button>
                   {% endif %}
                 {% endif %}
+                </div>
 
               {% else %}
                 {% if post.allow_register and not is_full %}
@@ -489,7 +491,15 @@
                     <tr>
                       <td>{{ forloop.counter }}</td>
                       <td>{{ reg.prefix }} {{ reg.first_name }} {{ reg.last_name }}</td>
-                      <td>{{ reg.user.profile.nickname|default_if_none:"-"|default:"-" }}</td>
+                      <td>
+                        {% if reg.nickname %}
+                          {{ reg.nickname }}
+                        {% elif reg.user and reg.user.profile and reg.user.profile.nickname %}
+                          {{ reg.user.profile.nickname }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
 
                       {% if user.is_authenticated and user == post.organizer %}
                         <td>{{ reg.birth_date|date:"d/m/Y" }}</td>
@@ -599,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ✅ Countdown 5 นาที สำหรับ undo ยกเลิกกิจกรรม
   const cancelUndoUntilISO = "{{ cancel_undo_until_iso|escapejs }}";
+  const finalizeUrl = "{% url 'activity_register:finalize_cancel_ajax' post.id %}";
   if (cancelUndoUntilISO) {
     const deadline = new Date(cancelUndoUntilISO).getTime();
     const countdownEl = document.getElementById('cancelCountdown');
@@ -612,8 +623,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (countdownEl) countdownEl.textContent = '00:00';
         if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'หมดเวลา'; }
         clearInterval(countdownInterval);
-        // refresh เฉพาะเมื่อหมดเวลา
-        location.reload();
+        // finalize on server via AJAX, then update UI without reloading
+        fetch(finalizeUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': window.CSRF_TOKEN },
+        })
+          .then(r => r.json())
+          .then(data => {
+            const block = document.getElementById('registrationStatusBlock');
+            if (block) {
+              // show canceled badge
+              let html = '<span class="badge bg-secondary">ยกเลิกแล้ว</span>';
+              if (data.cooldown_until_iso) {
+                html += ' <span class="text-muted small ms-2"><i class="fa-solid fa-clock me-1"></i>สมัครใหม่ได้ในอีก <span id="cooldownCountdown" class="fw-semibold text-danger"></span></span>';
+              } else {
+                // no cooldown -> show register if allowed
+                const canShow = block.dataset.showRegister === 'true';
+                if (canShow) html += ` <a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold ms-2">สมัคร</a>`;
+              }
+              block.innerHTML = html;
+
+              // start cooldown timer if provided
+              if (data.cooldown_until_iso) {
+                startCooldownTimer(data.cooldown_until_iso);
+              }
+            }
+          }).catch(()=>{});
         return;
       }
       const mins = Math.floor(diff / 60000);
@@ -636,8 +671,47 @@ document.addEventListener('DOMContentLoaded', () => {
       if (diff <= 0) {
         if (cdEl) cdEl.textContent = '';
         clearInterval(cooldownInterval);
-        // refresh เฉพาะเมื่อหมดเวลา
-        location.reload();
+        // update UI to allow re-register without full page reload
+        const block = document.getElementById('registrationStatusBlock');
+        if (block) {
+          const canShow = block.dataset.showRegister === 'true';
+          if (canShow) {
+            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold">สมัคร</a>`;
+          } else {
+            block.innerHTML = `<span class="badge bg-light rounded-pill">-</span>`;
+          }
+        }
+        return;
+      }
+      const hrs = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      if (cdEl) {
+        cdEl.textContent = (hrs > 0 ? hrs + ' ชม. ' : '') + mins + ' นาที ' + secs + ' วินาที';
+      }
+    }, 1000);
+  }
+  
+  // helper to start cooldown timer when initialized via AJAX
+  function startCooldownTimer(iso) {
+    if (!iso) return;
+    const cdEl = document.getElementById('cooldownCountdown');
+    let cdDeadline = new Date(iso).getTime();
+    const cooldownInterval = setInterval(() => {
+      const now = Date.now();
+      const diff = cdDeadline - now;
+      if (diff <= 0) {
+        if (cdEl) cdEl.textContent = '';
+        clearInterval(cooldownInterval);
+        const block = document.getElementById('registrationStatusBlock');
+        if (block) {
+          const canShow = block.dataset.showRegister === 'true';
+          if (canShow) {
+            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold">สมัคร</a>`;
+          } else {
+            block.innerHTML = `<span class="badge bg-light rounded-pill">-</span>`;
+          }
+        }
         return;
       }
       const hrs = Math.floor(diff / 3600000);

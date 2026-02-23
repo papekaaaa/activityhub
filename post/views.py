@@ -190,6 +190,15 @@ def post_detail_view(request, post_id):
         if my_reg and my_reg.status == ActivityRegistration.Status.CANCEL_PENDING:
             my_reg.finalize_cancel_if_expired()
             my_reg.refresh_from_db()
+        # ถ้าเป็นสถานะ CANCELED แต่ cooldown ผ่านแล้ว ให้ลบ cooldown เพื่อหยุดการนับถอยหลังฝั่ง client
+        if my_reg and my_reg.status == ActivityRegistration.Status.CANCELED and my_reg.cooldown_until:
+            from django.utils import timezone as _tz
+            if my_reg.cooldown_until and _tz.now() >= my_reg.cooldown_until:
+                # เก็บสถานะยกเลิกไว้ แต่ล้าง cooldown เพื่อให้ UI แสดงปกติ
+                my_reg.cooldown_until = None
+                my_reg.save(update_fields=['cooldown_until'])
+                # refresh from db to ensure template sees updated value
+                my_reg.refresh_from_db()
 
     # ✅ ตรวจสอบว่ามี chat room หรือไม่
     has_chat_room = ChatRoom.objects.filter(post=post).exists()

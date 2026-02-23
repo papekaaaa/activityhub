@@ -146,12 +146,12 @@
       <div class="profile-actions d-flex flex-wrap gap-2">
 
         {# ถ้าเป็นโปรไฟล์ของตัวเอง ให้แสดงปุ่มแก้ไข / สร้างกิจกรรม #}
-        {% if request.user.id == user.id %}
+        {% if request.user.email == user.email %}
 
-          {# ✅ เพิ่ม: ไอคอน/ปุ่มไป Dashboard สำหรับ staff/admin/approver #}
-          {% if request.user.is_staff or request.user.is_superuser %}
-            <a href="/approver/" class="btn btn-outline-dark btn-sm" title="Dashboard">
-              <i class="fa-solid fa-gauge-high me-1"></i> Dashboard
+          {# ✅ ปุ่มไปหน้า Approver สำหรับ role Approver หรือ Admin #}
+          {% if request.user.role == 'APPROVER' or request.user.role == 'ADMIN' %}
+            <a href="/approver/" class="btn btn-outline-dark btn-sm" title="Approver Dashboard">
+              ไปหน้า Approver
             </a>
           {% endif %}
 
@@ -284,9 +284,15 @@
                         📅 {{ reg.post.event_date|date:"j M Y" }} · 📍 {{ reg.post.location }}
                       </div>
                     </div>
-                    <span class="badge bg-success rounded-pill align-self-start">
-                      สมัครแล้ว
-                    </span>
+                    {% if reg.status == 'ACTIVE' %}
+                      <span class="badge bg-success rounded-pill align-self-start">สมัครแล้ว</span>
+                    {% elif reg.status == 'CANCEL_PENDING' %}
+                      <span class="badge bg-warning text-dark rounded-pill align-self-start">กำลังยกเลิก</span>
+                    {% elif reg.status == 'CANCELED' %}
+                      <span class="badge bg-secondary rounded-pill align-self-start">ยกเลิกแล้ว</span>
+                    {% else %}
+                      <span class="badge bg-light rounded-pill align-self-start">{{ reg.get_status_display }}</span>
+                    {% endif %}
                   </div>
                 </a>
               {% endfor %}

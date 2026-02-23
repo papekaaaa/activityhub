@@ -285,8 +285,8 @@
                   </button>
                 </div>
 
-                <!-- REGISTER BUTTON: ใช้ allow_register จาก model -->
-                {% if post.allow_register %}
+                <!-- REGISTER BUTTON: show_register ประเมินโดย view (รวมเงื่อนไข 1 วันก่อน, เต็ม, ปิดรับ) -->
+                {% if post.show_register %}
                 <a
                   href="{% url 'activity_register:register_activity' post.id %}"
                   class="btn btn-success btn-sm rounded-pill px-3 fw-semibold"

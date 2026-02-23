@@ -42,7 +42,7 @@
       </p>
     {% endif %}
 
-    <form method="post" novalidate>
+    <form method="post">
       {% csrf_token %}
 
       <!-- แถว 1: คำนำหน้า + ชื่อ + นามสกุล + ชื่อเล่น -->
@@ -118,6 +118,10 @@
         <div class="col-md-6">
           <label class="form-label">อีเมล</label>
           {{ form.email }}
+          {% comment %} if the form field is disabled by the view, include a hidden input so the value is submitted {% endcomment %}
+          {% if form.email.field.disabled %}
+            <input type="hidden" name="email" value="{{ form.initial.email|default:request.user.email }}">
+          {% endif %}
           {% for err in form.email.errors %}
             <div class="invalid-feedback d-block">{{ err }}</div>
           {% endfor %}
@@ -322,4 +326,34 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  // Make the email field read-only so users cannot change it here
+  const emailInput = document.querySelector('input[name="email"], input[type="email"]');
+  if (emailInput) {
+    emailInput.readOnly = true;
+    emailInput.classList.add('bg-white');
+  }
+});
+</script>
+<!-- Flatpickr for birth_date -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/th.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const birthDateInput = document.getElementById('birth_date');
+    if (birthDateInput) {
+      flatpickr(birthDateInput, {
+        enableTime: false,
+        locale: 'th',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'd/m/Y',
+        allowInput: true,
+        maxDate: 'today'
+      });
+    }
+  });
+</script>
 {% endblock %}
