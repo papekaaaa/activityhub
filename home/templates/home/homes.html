@@ -117,15 +117,17 @@
 
             <div class="d-flex align-items-center gap-2">
               <!-- ✅ ปุ่มติดตาม (เชื่อม backend จริง) -->
-              {% if user.is_authenticated and user.id != post.organizer.id %}
-              <button
-                type="button"
-                class="btn btn-sm rounded-pill px-3 follow-btn {% if post.is_following %}btn-primary{% else %}btn-outline-secondary{% endif %}"
-                data-following="{{ post.is_following|yesno:'true,false' }}"
-                data-url="{% url 'follow_toggle' post.organizer.email %}"
-              >
-                {% if post.is_following %}กำลังติดตาม{% else %}ติดตาม{% endif %}
-              </button>
+              <!-- ✅ ปุ่มติดตาม (เชื่อม backend จริง) -->
+              {% if user.is_authenticated and user.email != post.organizer.email %}
+                <button
+                  type="button"
+                  class="btn btn-sm rounded-pill px-4 follow-btn {% if post.is_following %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                  data-following="{{ post.is_following|yesno:'true,false' }}"
+                  data-url="{% url 'follow_toggle' post.organizer.email %}"
+                  style="font-weight:600;border-radius:999px;"
+                >
+                  {% if post.is_following %}กำลังติดตาม{% else %}ติดตาม{% endif %}
+                </button>
               {% endif %}
 
               <!-- ✅ เมนูรายงานโพสต์ -->
@@ -464,7 +466,7 @@ body {
   background-color: #fff;
   padding: 1rem;
   border-radius: 18px;
-  transition: box-shadow 0.3s ease, transform 0.2s.ease;
+  transition: box-shadow 0.3s ease, transform 0.2s ease;
 }
 .ig-card:hover {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -622,6 +624,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ✅ FOLLOW (เชื่อม backend จริง)
   document.querySelectorAll('.follow-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
+      if (btn.dataset.self === 'true') {
+        alert('ไม่สามารถติดตามตัวเองได้');
+        return;
+      }
       const url = btn.dataset.url;
       if (!url) return;
 
