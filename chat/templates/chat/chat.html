@@ -14,7 +14,7 @@
   .chat-wrapper {
     max-width: 960px;
     margin: 0 auto;
-    height: calc(100vh - 70px);
+    height: calc(90vh - 70px);
     background-color: #ffffff;
     border-radius: 24px;
     box-shadow: 0 6px 18px rgba(0,0,0,0.08);
@@ -436,6 +436,55 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Create a pending (optimistic) message DOM for file uploads
+  function appendPendingFile(localId, file, text) {
+    const isImage = file.type.startsWith('image/');
+    const row = document.createElement('div');
+    row.className = 'chat-row me';
+    row.setAttribute('data-local-id', localId);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-bubble-wrap';
+
+    const bubbleContainer = document.createElement('div');
+
+    if (text && String(text).trim() !== '') {
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.innerHTML = escapeHtml(text);
+      bubbleContainer.appendChild(bubble);
+    }
+
+    if (isImage) {
+      const attach = document.createElement('div');
+      attach.className = 'chat-bubble-img' + (text ? ' mt-1' : '');
+      const img = document.createElement('img');
+      img.className = 'chat-attach-img';
+      img.alt = 'attachment';
+      img.src = URL.createObjectURL(file);
+      attach.appendChild(img);
+      bubbleContainer.appendChild(attach);
+    } else {
+      const attach = document.createElement('div');
+      attach.className = 'chat-bubble' + (text ? ' mt-1' : '');
+      attach.textContent = file.name || 'ไฟล์แนบ';
+      bubbleContainer.appendChild(attach);
+    }
+
+    // status indicator
+    const status = document.createElement('div');
+    status.className = 'small text-muted mt-1';
+    status.textContent = 'กำลังอัปโหลด...';
+    bubbleContainer.appendChild(status);
+
+    wrapper.appendChild(bubbleContainer);
+    row.appendChild(wrapper);
+    messagesEl.appendChild(row);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    return row;
+  }
+
   // Image preview logic
   const previewDiv = document.getElementById('filePreview');
   const previewImg = document.getElementById('filePreviewImg');
@@ -471,22 +520,71 @@ document.addEventListener('DOMContentLoaded', () => {
     if (file) {
       e.preventDefault();
 
+      // optimistic UI: append pending DOM with local object URL
+      const localId = 'local-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      const pendingRow = appendPendingFile(localId, file, text);
+
+      // hide the bottom preview immediately so it disappears as soon as user taps Send
+      previewDiv.classList.add('d-none');
+      previewImg.src = '';
+      previewName.textContent = '';
+      // clear file input visually (we still hold `file` variable for upload)
+      fileEl.value = '';
+      // optional: clear text input
+      inputEl.value = '';
+
       const fd = new FormData();
       fd.append('content', text);
       fd.append('file', file);
 
-      const res = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
-        body: fd
-      });
+      let res;
+      try {
+        res = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+          body: fd
+        });
+      } catch (err) {
+        // network error -> mark pending as failed
+        const statusEl = pendingRow.querySelector('.small.text-muted');
+        if (statusEl) statusEl.textContent = 'อัปโหลดล้มเหลว';
+        console.error('Upload failed', err);
+        return;
+      }
 
-      if (res.ok) {
+      if (res && res.ok) {
+        const j = await res.json().catch(() => ({}));
+
         inputEl.value = '';
         fileEl.value = '';
         previewDiv.classList.add('d-none');
         previewImg.src = '';
         previewName.textContent = '';
+
+        // If server returned the payload, replace pending DOM with real payload
+        if (j && j.payload) {
+          try {
+            // remove objectURL to free memory
+            const imgEl = pendingRow.querySelector('img');
+            if (imgEl && imgEl.src && imgEl.src.startsWith('blob:')) {
+              URL.revokeObjectURL(imgEl.src);
+            }
+
+            // build real message using payload
+            pendingRow.remove();
+            appendMessage(j.payload);
+          } catch (err) {
+            // fallback to reload if DOM replace fails
+            console.error('Failed to replace pending DOM', err);
+            setTimeout(() => { window.location.reload(); }, 300);
+          }
+        } else {
+          // fallback: reload once to ensure attachment is visible
+          setTimeout(() => { window.location.reload(); }, 300);
+        }
+      } else {
+        const statusEl = pendingRow.querySelector('.small.text-muted');
+        if (statusEl) statusEl.textContent = 'กำลังอัปโหลด... Refresh ' ;
       }
       return;
     }

@@ -281,7 +281,8 @@ def upload_message_view(request, room_id):
     except Exception:
         pass
 
-    return JsonResponse({"ok": True})
+    # Return the same payload so the HTTP uploader can show the message immediately
+    return JsonResponse({"ok": True, "payload": payload})
 
 
 @login_required

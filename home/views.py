@@ -9,6 +9,81 @@ import json
 from django.contrib.auth import get_user_model
 from users.models import Profile  # ✅ เพิ่มเพื่อเช็คสถานะติดตาม
 from django.utils import timezone
+import datetime
+import re
+import difflib
+
+
+def _normalize_search_query(raw):
+    """
+    Normalize user search input to help matching:
+    - map Thai month names/abbreviations to month numbers and English short names
+    - convert Buddhist year (พ.ศ.) to Gregorian year (ค.ศ.) and add both forms
+    - return list of tokens to search for
+    """
+    if not raw:
+        return []
+
+    s = raw.strip()
+
+    # map Thai month names to month numbers and english short names
+    thai_months = {
+        'มกราคม': ('01', 'Jan'), 'ม.ค.': ('01', 'Jan'), 'ม.ค': ('01', 'Jan'),
+        'กุมภาพันธ์': ('02', 'Feb'), 'ก.พ.': ('02', 'Feb'), 'ก.พ': ('02', 'Feb'),
+        'มีนาคม': ('03', 'Mar'), 'มี.ค.': ('03', 'Mar'), 'มี.ค': ('03', 'Mar'),
+        'เมษายน': ('04', 'Apr'), 'เม.ย.': ('04', 'Apr'), 'เม.ย': ('04', 'Apr'),
+        'พฤษภาคม': ('05', 'May'), 'พ.ค.': ('05', 'May'), 'พ.ค': ('05', 'May'),
+        'มิถุนายน': ('06', 'Jun'), 'มิ.ย.': ('06', 'Jun'), 'มิ.ย': ('06', 'Jun'),
+        'กรกฎาคม': ('07', 'Jul'), 'ก.ค.': ('07', 'Jul'), 'ก.ค': ('07', 'Jul'),
+        'สิงหาคม': ('08', 'Aug'), 'ส.ค.': ('08', 'Aug'), 'ส.ค': ('08', 'Aug'),
+        'กันยายน': ('09', 'Sep'), 'ก.ย.': ('09', 'Sep'), 'ก.ย': ('09', 'Sep'),
+        'ตุลาคม': ('10', 'Oct'), 'ต.ค.': ('10', 'Oct'), 'ต.ค': ('10', 'Oct'),
+        'พฤศจิกายน': ('11', 'Nov'), 'พ.ย.': ('11', 'Nov'), 'พ.ย': ('11', 'Nov'),
+        'ธันวาคม': ('12', 'Dec'), 'ธ.ค.': ('12', 'Dec'), 'ธ.ค': ('12', 'Dec'),
+    }
+
+    tokens = []
+
+    # find 4-digit years in query and convert BE->CE if looks like BE
+    years = re.findall(r'\b(\d{4})\b', s)
+    for y in years:
+        try:
+            yi = int(y)
+            tokens.append(y)
+            if yi > 2400:  # likely Buddhist year
+                ce = yi - 543
+                tokens.append(str(ce))
+        except Exception:
+            pass
+
+    # replace thai month names with month numbers and english short name tokens
+    for k, (mn, en) in thai_months.items():
+        if k in s:
+            tokens.append(k)
+            tokens.append(mn)
+            tokens.append(en)
+            s = s.replace(k, ' ')
+
+    # split remaining by non-word to get tokens
+    more = re.split(r'\W+', s)
+    for t in more:
+        if t:
+            tokens.append(t)
+
+    # dedupe and lowercase
+    seen = set()
+    out = []
+    for t in tokens:
+        tl = t.strip()
+        if not tl:
+            continue
+        tl_lower = tl.lower()
+        if tl_lower in seen:
+            continue
+        seen.add(tl_lower)
+        out.append(tl)
+
+    return out
 
 
 def index_view(request):
@@ -81,15 +156,98 @@ def home_view(request):
         posts = posts.filter(category=selected_category)
 
     if search_query:
-        posts = posts.filter(
-            Q(title__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(location__icontains=search_query) |
-            Q(organizer__first_name__icontains=search_query) |
-            Q(organizer__last_name__icontains=search_query)
-        ).distinct()
+        tokens = _normalize_search_query(search_query)
 
-    posts = posts.order_by('-created_at')
+        # Build Q for tokens: match any token in several text fields
+        q = Q()
+        for t in tokens:
+            token_q = (
+                Q(title__icontains=t) |
+                Q(description__icontains=t) |
+                Q(location__icontains=t) |
+                Q(organizer__first_name__icontains=t) |
+                Q(organizer__last_name__icontains=t)
+            )
+            # if token looks like a 4-digit year, also match event_date year
+            if t.isdigit() and len(t) == 4:
+                try:
+                    yi = int(t)
+                    token_q |= Q(event_date__year=yi)
+                except Exception:
+                    pass
+
+            q |= token_q
+
+        posts = posts.filter(q).distinct()
+
+        # Annotate relevance score for QuerySet results so we can order by best matches first
+        if hasattr(posts, 'annotate') and tokens:
+            from django.db.models import Case, When, IntegerField
+            import operator
+            token_exprs = []
+            for t in tokens:
+                cond = (
+                    Q(title__icontains=t) |
+                    Q(description__icontains=t) |
+                    Q(location__icontains=t) |
+                    Q(organizer__first_name__icontains=t) |
+                    Q(organizer__last_name__icontains=t)
+                )
+                if t.isdigit() and len(t) == 4:
+                    try:
+                        yi = int(t)
+                        cond |= Q(event_date__year=yi)
+                    except Exception:
+                        pass
+                token_exprs.append(Case(When(cond, then=1), default=0, output_field=IntegerField()))
+
+            if token_exprs:
+                score_expr = token_exprs[0]
+                for expr in token_exprs[1:]:
+                    score_expr = score_expr + expr
+                posts = posts.annotate(score=score_expr).order_by('-score', '-created_at')
+
+        # If no DB hits, try a lightweight fuzzy match in Python across a reasonable candidate set
+        # to tolerate typos: compute similarity against title/description/location/organizer.
+        if not posts.exists():
+            candidates = Post.objects.filter(
+                status=Post.Status.APPROVED,
+                is_hidden=False,
+                is_deleted=False,
+            ).order_by('-created_at')[:300]
+
+            def best_score(p):
+                hay = ' '.join(filter(None, [p.title or '', p.description or '', p.location or '',
+                                             (p.organizer.first_name or '') + ' ' + (p.organizer.last_name or '')]))
+                hay_low = hay.lower()
+                best = 0.0
+                for t in tokens:
+                    try:
+                        score = difflib.SequenceMatcher(None, t.lower(), hay_low).ratio()
+                        if score > best:
+                            best = score
+                    except Exception:
+                        continue
+                return best
+
+            matched = []
+            for p in candidates:
+                try:
+                    sc = best_score(p)
+                    if sc >= 0.45:  # tolerant threshold
+                        matched.append((sc, p))
+                except Exception:
+                    continue
+
+            matched.sort(key=lambda x: x[0], reverse=True)
+            posts = [m[1] for m in matched]
+
+    # posts may be a QuerySet or a list (after fuzzy matching)
+    if hasattr(posts, 'order_by'):
+        posts = posts.order_by('-created_at')
+    else:
+        # list of Post instances -> sort in-place by created_at desc
+        posts.sort(key=lambda p: getattr(p, 'created_at', datetime.datetime.min), reverse=True)
 
     # compute show_register for each post (hide when closed, full, or within 1 day of event)
     posts = list(posts)

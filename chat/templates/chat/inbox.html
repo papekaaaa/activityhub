@@ -104,8 +104,7 @@
             </a>
 
             <!-- Delete chat room button -->
-            <form method="post" action="{% url 'chat:delete_chat_room' r.room_id %}" class="ms-2 flex-shrink-0"
-                  onsubmit="return confirm('ต้องการออกจากห้องแชทนี้หรือไม่?');">
+            <form method="post" action="{% url 'chat:delete_chat_room' r.room_id %}" class="ms-2 flex-shrink-0 chat-delete-form">
               {% csrf_token %}
               <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle d-flex align-items-center justify-content-center" style="width:36px;height:36px;" title="ลบแชท">
                 <i class="fa-solid fa-trash-can"></i>
@@ -122,4 +121,47 @@
     </div>
   </div>
 </div>
+    <!-- Delete confirmation modal -->
+    <div class="modal fade" id="deleteChatModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">ยืนยันการลบแชท</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">ต้องการออกจากห้องแชทนี้หรือไม่?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="button" id="confirmDeleteChatBtn" class="btn btn-danger">ลบ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      let pendingForm = null;
+      const deleteModalEl = document.getElementById('deleteChatModal');
+      const bootstrapModal = deleteModalEl ? new bootstrap.Modal(deleteModalEl) : null;
+
+      document.querySelectorAll('form.chat-delete-form').forEach(form => {
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          pendingForm = form;
+          if (bootstrapModal) bootstrapModal.show();
+        });
+      });
+
+      const confirmBtn = document.getElementById('confirmDeleteChatBtn');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', function () {
+          if (!pendingForm) return;
+          // submit the original form (will perform server-side delete and redirect)
+          pendingForm.submit();
+        });
+      }
+    });
+    </script>
 {% endblock %}
