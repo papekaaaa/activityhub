@@ -199,3 +199,20 @@ def api_mark_read(request, notif_id):
     n.save(update_fields=["is_read"])
     unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({"ok": True, "unread": unread_count})
+
+
+@login_required
+@require_POST
+def mark_notification_as_read(request):
+    notif_id = request.POST.get("notif_id")
+    if not notif_id:
+        return JsonResponse({"success": False, "error": "Missing notification id"}, status=400)
+    try:
+        notif = Notification.objects.get(id=notif_id, user=request.user)
+        notif.is_read = True
+        notif.save(update_fields=["is_read"])
+        # return updated unread count so frontend can update badge reliably
+        unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
+        return JsonResponse({"success": True, "unread": unread_count})
+    except Notification.DoesNotExist:
+        return JsonResponse({"success": False, "error": "Notification not found"}, status=404)

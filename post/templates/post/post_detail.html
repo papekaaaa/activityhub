@@ -64,7 +64,6 @@
         </div>
         {% endif %}
 
-        <!-- โปรไฟล์ผู้สร้าง มุมขวา -->
         <div class="d-flex align-items-center justify-content-end px-4 pt-3">
           <div class="text-end me-3">
             <div class="fw-semibold" style="font-size: 1.05rem;">{{ post.organizer.first_name }} {{ post.organizer.last_name }}</div>
@@ -168,7 +167,7 @@
             <div class="d-flex align-items-center gap-3">
 
               {% if user.is_authenticated %}
-                <div id="registrationStatusBlock" data-show-register="{{ post.show_register|yesno:'true,false' }}">
+                <div id="registrationStatusBlock" data-show-register="{% if post.allow_register and not is_full %}true{% else %}false{% endif %}">
                 <button
                   type="button"
                   class="btn btn-link p-0 like-btn"
@@ -397,7 +396,6 @@
   </div>
 </div>
 
-<!-- OVERLAY แสดงกำหนดการ -->
 <div
   id="scheduleModal"
   class="position-fixed top-0 start-0 w-100 h-100 d-none align-items-center justify-content-center"
@@ -534,6 +532,22 @@
     </div>
   </div>
 </div>
+
+{# เงื่อนไขแสดงฟอร์มรีวิว: เฉพาะผู้สมัคร (ACTIVE) และหลังวันกิจกรรมเท่านั้น #}
+{% if not post.is_deleted and my_reg and my_reg.status == 'ACTIVE' %}
+  {% if post.date and post.date < now or post.event_date and post.event_date < now %}
+    <div class="container-fluid px-4 mt-4">
+      <div class="row justify-content-center">
+        <div class="col-lg-9">
+          <div class="bg-white shadow-sm rounded-4 p-4">
+            <h6 class="fw-bold mb-2">รีวิวกิจกรรมนี้</h6>
+            {% include 'activity_register/review_form.html' %}
+          </div>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endif %}
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -676,9 +690,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (block) {
           const canShow = block.dataset.showRegister === 'true';
           if (canShow) {
-            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold">สมัคร</a>`;
+            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold ms-2">สมัคร</a>`;
           } else {
-            block.innerHTML = `<span class="badge bg-light rounded-pill">-</span>`;
+            block.innerHTML = `<span class="badge bg-light rounded-pill ms-2">-</span>`;
           }
         }
         return;
@@ -707,9 +721,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (block) {
           const canShow = block.dataset.showRegister === 'true';
           if (canShow) {
-            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold">สมัคร</a>`;
+            block.innerHTML = `<a href="{% url 'activity_register:register_activity' post.id %}" class="btn btn-success rounded-pill px-4 fw-semibold ms-2">สมัคร</a>`;
           } else {
-            block.innerHTML = `<span class="badge bg-light rounded-pill">-</span>`;
+            block.innerHTML = `<span class="badge bg-light rounded-pill ms-2">-</span>`;
           }
         }
         return;
@@ -725,13 +739,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 {% endblock %}
-
-{# เงื่อนไขแสดงฟอร์มรีวิว: เฉพาะผู้สมัคร (ACTIVE) และหลังวันกิจกรรมเท่านั้น #}
-{% if not post.is_deleted and my_reg and my_reg.status == 'ACTIVE' %}
-  {% if post.date and post.date < now or post.event_date and post.event_date < now %}
-    <div class="mt-4">
-      <h6 class="fw-bold mb-2">รีวิวกิจกรรมนี้</h6>
-      {% include 'activity_register/review_form.html' %}
-    </div>
-  {% endif %}
-{% endif %}

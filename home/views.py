@@ -152,6 +152,8 @@ def home_view(request):
     selected_category = request.GET.get('category')
     search_query = request.GET.get('search', '').strip()
 
+    is_scored = False  # ✅ ตัวแปรเช็คว่ามีการให้คะแนนเพื่อจัดเรียงหรือไม่
+
     if selected_category:
         posts = posts.filter(category=selected_category)
 
@@ -166,50 +168,78 @@ def home_view(request):
                 Q(description__icontains=t) |
                 Q(location__icontains=t) |
                 Q(organizer__first_name__icontains=t) |
-                Q(organizer__last_name__icontains=t)
+                Q(organizer__last_name__icontains=t) |
+                Q(organizer__email__icontains=t)
             )
-            # if token looks like a 4-digit year, also match event_date year
             if t.isdigit() and len(t) == 4:
                 try:
                     yi = int(t)
                     token_q |= Q(event_date__year=yi)
                 except Exception:
                     pass
-
             q |= token_q
 
         posts = posts.filter(q).distinct()
 
-        # Annotate relevance score for QuerySet results so we can order by best matches first
+        # Annotate relevance score using weighted matches
         if hasattr(posts, 'annotate') and tokens:
-            from django.db.models import Case, When, IntegerField
-            import operator
+            from django.db.models import Case, When, IntegerField, Value
+            
+            phrase = search_query.strip()
             token_exprs = []
-            for t in tokens:
-                cond = (
-                    Q(title__icontains=t) |
-                    Q(description__icontains=t) |
-                    Q(location__icontains=t) |
-                    Q(organizer__first_name__icontains=t) |
-                    Q(organizer__last_name__icontains=t)
+
+            # --- 1. คะแนนพิเศษสูงสุด (10000) ใช้ icontains ทั้งหมด ---
+            if '@' in phrase:
+                token_exprs.append(Case(When(Q(organizer__email__icontains=phrase), then=Value(10000)), default=Value(0), output_field=IntegerField()))
+            
+            parts = phrase.split()
+            if len(parts) >= 2:
+                first = parts[0]
+                last = parts[-1]
+                name_cond = (
+                    Q(organizer__first_name__icontains=first) & Q(organizer__last_name__icontains=last)
+                ) | (
+                    Q(organizer__first_name__icontains=last) & Q(organizer__last_name__icontains=first)
                 )
+                token_exprs.append(Case(When(name_cond, then=Value(10000)), default=Value(0), output_field=IntegerField()))
+            elif len(parts) == 1:
+                # กรณีค้นหาคำเดียว ขอแค่มีส่วนหนึ่งของชื่อหรือนามสกุลตรง ก็ให้คะแนนเต็ม
+                exact_name_cond = Q(organizer__first_name__icontains=phrase) | Q(organizer__last_name__icontains=phrase)
+                token_exprs.append(Case(When(exact_name_cond, then=Value(10000)), default=Value(0), output_field=IntegerField()))
+
+            # --- 2. คะแนนระดับย่อยตาม Token (คำที่ถูกตัดแยก) ---
+            for t in tokens:
+                token_exprs.append(
+                    Case(
+                        When(Q(organizer__email__icontains=t), then=Value(50)),
+                        When(Q(organizer__first_name__icontains=t) | Q(organizer__last_name__icontains=t), then=Value(40)),
+                        When(Q(title__icontains=t), then=Value(10)),
+                        When(Q(description__icontains=t), then=Value(5)),
+                        When(Q(location__icontains=t), then=Value(3)),
+                        default=Value(0),
+                        output_field=IntegerField(),
+                    )
+                )
+
                 if t.isdigit() and len(t) == 4:
                     try:
                         yi = int(t)
-                        cond |= Q(event_date__year=yi)
+                        token_exprs.append(Case(When(Q(event_date__year=yi), then=Value(10)), default=Value(0), output_field=IntegerField()))
                     except Exception:
                         pass
-                token_exprs.append(Case(When(cond, then=1), default=0, output_field=IntegerField()))
 
+            # --- 3. นำคะแนนมารวมกันและเรียงลำดับ (Order By Score) ---
             if token_exprs:
                 score_expr = token_exprs[0]
                 for expr in token_exprs[1:]:
                     score_expr = score_expr + expr
+                
+                # เรียงคะแนนจากมากไปน้อย (ถ้าคะแนนเท่ากันเรียงตามวันที่)
                 posts = posts.annotate(score=score_expr).order_by('-score', '-created_at')
+                is_scored = True  # ✅ มาร์คไว้ว่าจัดเรียงด้วยคะแนนแล้ว
 
-        # If no DB hits, try a lightweight fuzzy match in Python across a reasonable candidate set
-        # to tolerate typos: compute similarity against title/description/location/organizer.
-        if not posts.exists():
+        # If no DB hits, try a lightweight fuzzy match in Python
+        if hasattr(posts, 'exists') and not posts.exists():
             candidates = Post.objects.filter(
                 status=Post.Status.APPROVED,
                 is_hidden=False,
@@ -242,11 +272,12 @@ def home_view(request):
             matched.sort(key=lambda x: x[0], reverse=True)
             posts = [m[1] for m in matched]
 
-    # posts may be a QuerySet or a list (after fuzzy matching)
+    # ✅ ป้องกันการเรียงลำดับทับคะแนนที่เราตั้งไว้ (ถ้ายังไม่มีการเรียงด้วยคะแนน ให้เรียงตามเวลา)
     if hasattr(posts, 'order_by'):
-        posts = posts.order_by('-created_at')
+        if not is_scored:
+            posts = posts.order_by('-created_at')
     else:
-        # list of Post instances -> sort in-place by created_at desc
+        # list of Post instances -> sort in-place by created_at desc (สำหรับกรณี fuzzy match)
         posts.sort(key=lambda p: getattr(p, 'created_at', datetime.datetime.min), reverse=True)
 
     # compute show_register for each post (hide when closed, full, or within 1 day of event)
@@ -341,6 +372,8 @@ def post_detail_view(request, post_id):
 
     # ✅ ดึงสถานะลงทะเบียนของ user (ถ้ามี)
     my_reg = None
+    can_register_again = False
+    cooldown_until_iso = ''
     if request.user.is_authenticated:
         my_reg = ActivityRegistration.objects.filter(
             user=request.user,
@@ -351,11 +384,25 @@ def post_detail_view(request, post_id):
             my_reg.finalize_cancel_if_expired()
             my_reg.refresh_from_db()
 
+        # เงื่อนไขสมัครใหม่ได้: เคย CANCELED และ cooldown หมด, ยังไม่หมดเขตรับสมัคร, ยังไม่เต็ม, ยังไม่เลยวันกิจกรรม
+        if my_reg and my_reg.status == ActivityRegistration.Status.CANCELED:
+            now = timezone.now()
+            if not my_reg.cooldown_until or now >= my_reg.cooldown_until:
+                if post.allow_register and not post.is_full() and (not post.event_date or now <= post.event_date):
+                    can_register_again = True
+            if my_reg.cooldown_until:
+                cooldown_until_iso = my_reg.cooldown_until.isoformat()
+
     has_chat_room = ChatRoom.objects.filter(post=post).exists()
 
     user_is_registered = False
     if my_reg and my_reg.status == 'ACTIVE':
         user_is_registered = True
+
+    # ไม่ส่ง my_reg ถ้าเป็น CANCELED และสมัครใหม่ได้ (เพื่อไม่ให้ template แสดงสถานะยกเลิก)
+    my_reg_for_template = my_reg
+    if my_reg and my_reg.status == ActivityRegistration.Status.CANCELED and can_register_again:
+        my_reg_for_template = None
 
     context = {
         'post': post,
@@ -363,13 +410,14 @@ def post_detail_view(request, post_id):
         'review_count': review_count,
         'avg_rating': avg_rating,
         'avg_rating_int': avg_rating_int,
-        'my_reg': my_reg,
+        'my_reg': my_reg_for_template,
         'active_reg_count': post.active_registrations_count(),
         'is_full': post.is_full(),
         'has_chat_room': has_chat_room,
         'user_is_registered': user_is_registered,
         'cancel_undo_until_iso': my_reg.cancel_undo_until.isoformat() if my_reg and my_reg.cancel_undo_until else '',
-        'cooldown_until_iso': my_reg.cooldown_until.isoformat() if my_reg and my_reg.cooldown_until and my_reg.status == 'CANCELED' else '',
+        'cooldown_until_iso': cooldown_until_iso,
+        'can_register_again': can_register_again,
     }
     return render(request, 'home/post_detail.html', context)
 

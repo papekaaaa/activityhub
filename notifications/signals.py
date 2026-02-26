@@ -21,26 +21,43 @@ def _capacity_status_text(post: Post, reg_count: int) -> str:
 # -------------------------
 # (2) แจ้งผู้สร้างทันทีเมื่อกิจกรรมเต็ม
 # -------------------------
-@receiver(post_save, sender=ActivityRegistration)
-def notify_owner_when_full(sender, instance: ActivityRegistration, created, **kwargs):
-    if not created:
-        return
 
+# -------------------------
+# (2) แจ้งผู้สร้างทันทีเมื่อกิจกรรมเต็ม และแจ้งเมื่อมีคนยกเลิก
+# -------------------------
+from django.db.models.signals import post_save
+@receiver(post_save, sender=ActivityRegistration)
+def notify_owner_when_full_or_cancel(sender, instance: ActivityRegistration, created, **kwargs):
     post = instance.post
     if not post or post.is_deleted or post.is_hidden or post.status != "APPROVED":
         return
 
+    today = timezone.localdate()
+
+    # แจ้งเตือนเมื่อมีคนยกเลิก (CANCELED)
+    if instance.status == ActivityRegistration.Status.CANCELED:
+        from .models import Notification
+        Notification.objects.get_or_create(
+            user=post.organizer,
+            post=post,
+            kind=Notification.Kind.SYSTEM,
+            trigger_date=today,
+            defaults={
+                "title": post.title,
+                "message": f"มีผู้สมัครยกเลิกการเข้าร่วมกิจกรรม: {instance.user.get_full_name() if instance.user else ''}",
+                "link_url": f"/post/{post.id}/",
+            },
+        )
+
+    # แจ้งเตือนเมื่อกิจกรรมเต็ม (นับเฉพาะ ACTIVE)
     cap = getattr(post, "slots_available", None)
     if cap is None or cap <= 0:
         return
-
-    reg_count = ActivityRegistration.objects.filter(post=post).count()
-    if reg_count < cap:
+    # นับเฉพาะ ACTIVE registrations เท่านั้น
+    active_count = ActivityRegistration.objects.filter(post=post, status=ActivityRegistration.Status.ACTIVE).count()
+    if active_count < cap:
         return
-
-    today = timezone.localdate()
-    status_text = _capacity_status_text(post, reg_count)
-
+    status_text = _capacity_status_text(post, active_count)
     Notification.objects.get_or_create(
         user=post.organizer,
         post=post,

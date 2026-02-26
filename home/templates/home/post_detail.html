@@ -194,7 +194,6 @@
               {% if user.is_authenticated %}
                 {% if my_reg and my_reg.status == "ACTIVE" %}
                   <span class="badge bg-success">สมัครไปแล้ว</span>
-
                   <button
                     type="button"
                     class="btn btn-outline-danger rounded-pill px-4 fw-semibold"
@@ -203,18 +202,22 @@
                   >
                     ยกเลิกกิจกรรม
                   </button>
-
                 {% elif my_reg and my_reg.status == "CANCEL_PENDING" %}
                   <span class="badge bg-warning text-dark">รอยืนยันยกเลิก</span>
                   <span id="cancelCountdown" class="badge bg-dark text-white ms-1"></span>
-
                   <form method="post" action="{% url 'activity_register:undo_cancel_activity' post.id %}" class="d-inline" id="undoCancelForm">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-warning rounded-pill px-4 fw-semibold" id="undoCancelBtn">
                       ยกเลิกการดำเนินการ (Undo)
                     </button>
                   </form>
-
+                {% if can_register_again %}
+                  <a
+                    href="{% url 'activity_register:register_activity' post.id %}"
+                    class="btn btn-success rounded-pill px-4 fw-semibold"
+                  >
+                    สมัคร
+                  </a>
                 {% elif my_reg and my_reg.status == "CANCELED" %}
                   <span class="badge bg-secondary">ยกเลิกแล้ว</span>
                   {% if cooldown_until_iso %}
@@ -223,7 +226,6 @@
                       <span id="cooldownCountdown" class="fw-semibold text-danger"></span>
                     </span>
                   {% endif %}
-
                 {% else %}
                   {% if post.allow_register and not is_full %}
                     <a

@@ -283,13 +283,7 @@
           const markBtn = left.querySelector("button");
           if (markBtn && !n.is_read) {
             markBtn.addEventListener("click", async () => {
-              const r = await fetch(`/notifications/api/read/${n.id}/`, {
-                method: "POST",
-                headers: { "X-CSRFToken": window.CSRF_TOKEN },
-              });
-              if (r.ok) {
-                await loadNotifications();
-              }
+              await markNotificationAsRead(n.id);
             });
           }
 
@@ -297,6 +291,35 @@
           row.appendChild(right);
           list.appendChild(row);
         });
+      }
+
+      async function markNotificationAsRead(notifId) {
+        try {
+          const res = await fetch('/notifications/mark-as-read/', {
+            method: 'POST',
+            headers: {
+              'X-CSRFToken': window.CSRF_TOKEN,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'notif_id=' + encodeURIComponent(notifId)
+          });
+          if (!res.ok) return;
+          const data = await res.json();
+          // update badge using returned unread count
+          const badge = document.getElementById('notifBadge');
+          if (badge) {
+            if (typeof data.unread === 'number' && data.unread > 0) {
+              badge.style.display = 'inline-block';
+              badge.textContent = data.unread;
+            } else {
+              badge.style.display = 'none';
+            }
+          }
+          // reload list to reflect read state
+          await loadNotifications();
+        } catch (e) {
+          console.error('markNotificationAsRead error', e);
+        }
       }
 
       document.addEventListener("DOMContentLoaded", () => {

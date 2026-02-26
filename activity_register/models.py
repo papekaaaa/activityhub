@@ -133,6 +133,7 @@ class ActivityRegistration(models.Model):
         """
         พ้น 5 นาที -> ยกเลิกจริง (เปลี่ยนเป็น CANCELED) + ตั้ง cooldown 1 ชม.
         (ไม่ลบ record เพื่อเก็บ cooldown และประวัติ)
+        เพิ่ม slots_available ของ post +1 เพื่อทดแทนตำแหน่งที่ยกเลิก
         """
         now = timezone.now()
         if self.status != self.Status.CANCEL_PENDING:
@@ -143,6 +144,12 @@ class ActivityRegistration(models.Model):
         self.status = self.Status.CANCELED
         self.cooldown_until = now + timezone.timedelta(hours=2)
         self.save(update_fields=["status", "cooldown_until"])
+
+        # เพิ่มจำนวน slots_available ของ post +1
+        if self.post and self.post.slots_available > 0:
+            self.post.slots_available += 1
+            self.post.save(update_fields=["slots_available"])
+
         return True
 
 

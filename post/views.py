@@ -132,7 +132,6 @@ def post_update_view(request, post_id):
             'form': form,
             'title': 'แก้ไขกิจกรรม',
             'post': post,
-            # ✅ ใช้ใน template: ถ้า allow_register=True ให้โชว์ปุ่ม "ปิดรับการสมัคร"
             'show_close_register_button': post.allow_register,
         },
     )
@@ -178,35 +177,48 @@ def post_detail_view(request, post_id):
     avg_rating_int = int(round(avg_rating)) if avg_rating else 0
     review_count = reviews.count()
 
-    # ✅ สถานะการสมัครของผู้ใช้ (ใช้ทำ “สมัครแล้ว/ยกเลิก/undo” ใน template)
+    # ✅ สถานะการสมัครของผู้ใช้
     my_reg = None
+    can_register_again = False
+    cooldown_until_iso = ''
+
     if request.user.is_authenticated:
         my_reg = ActivityRegistration.objects.filter(
             user=request.user,
             post=post,
         ).first()
 
-        # finalize pending ถ้าหมดเวลา (กันคนค้าง)
         if my_reg and my_reg.status == ActivityRegistration.Status.CANCEL_PENDING:
             my_reg.finalize_cancel_if_expired()
             my_reg.refresh_from_db()
-        # ถ้าเป็นสถานะ CANCELED แต่ cooldown ผ่านแล้ว ให้ลบ cooldown เพื่อหยุดการนับถอยหลังฝั่ง client
-        if my_reg and my_reg.status == ActivityRegistration.Status.CANCELED and my_reg.cooldown_until:
-            from django.utils import timezone as _tz
-            if my_reg.cooldown_until and _tz.now() >= my_reg.cooldown_until:
-                # เก็บสถานะยกเลิกไว้ แต่ล้าง cooldown เพื่อให้ UI แสดงปกติ
-                my_reg.cooldown_until = None
-                my_reg.save(update_fields=['cooldown_until'])
-                # refresh from db to ensure template sees updated value
-                my_reg.refresh_from_db()
 
-    # ✅ ตรวจสอบว่ามี chat room หรือไม่
+        if my_reg and my_reg.status == ActivityRegistration.Status.CANCELED:
+            from django.utils import timezone as _tz
+            now = _tz.now()
+            # ถ้าไม่มีเวลา Cooldown หรือผ่านเวลา Cooldown มาแล้ว
+            if not my_reg.cooldown_until or now >= my_reg.cooldown_until:
+                if my_reg.cooldown_until:
+                    my_reg.cooldown_until = None
+                    my_reg.save(update_fields=['cooldown_until'])
+                    my_reg.refresh_from_db()
+                
+                # ถ้ากิจกรรมยังเปิดรับสมัคร, ยังไม่เต็ม และยังไม่เลยวันจัดกิจกรรม ให้สิทธิ์สมัครใหม่
+                if post.allow_register and not post.is_full() and (not post.event_date or now <= post.event_date):
+                    can_register_again = True
+            else:
+                cooldown_until_iso = my_reg.cooldown_until.isoformat()
+
     has_chat_room = ChatRoom.objects.filter(post=post).exists()
 
-    # ✅ ตรวจสอบว่าผู้ใช้สมัครแล้วหรือยัง (สถานะ ACTIVE)
     user_is_registered = False
     if my_reg and my_reg.status == 'ACTIVE':
         user_is_registered = True
+
+    # 💡 ทริคสำคัญ: ถ้าสามารถสมัครใหม่ได้ เราจะแปลง my_reg เป็น None ตอนส่งให้หน้า Template
+    # เพื่อให้เงื่อนไขใน HTML ข้ามสถานะ CANCELED และไปแสดงปุ่ม "สมัครกิจกรรม" 
+    my_reg_for_template = my_reg
+    if can_register_again:
+        my_reg_for_template = None
 
     context = {
         'post': post,
@@ -214,13 +226,13 @@ def post_detail_view(request, post_id):
         'avg_rating': avg_rating,
         'avg_rating_int': avg_rating_int,
         'review_count': review_count,
-        'my_reg': my_reg,
+        'my_reg': my_reg_for_template,  # ใช้ตัวแปรนี้แทน my_reg ปกติ
         'active_reg_count': post.active_registrations_count(),
         'is_full': post.is_full(),
         'has_chat_room': has_chat_room,
         'user_is_registered': user_is_registered,
         'cancel_undo_until_iso': my_reg.cancel_undo_until.isoformat() if my_reg and my_reg.cancel_undo_until else '',
-        'cooldown_until_iso': my_reg.cooldown_until.isoformat() if my_reg and my_reg.cooldown_until and my_reg.status == 'CANCELED' else '',
+        'cooldown_until_iso': cooldown_until_iso,
     }
     return render(request, 'post/post_detail.html', context)
 
