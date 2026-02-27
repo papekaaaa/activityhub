@@ -156,10 +156,33 @@
 
       const confirmBtn = document.getElementById('confirmDeleteChatBtn');
       if (confirmBtn) {
-        confirmBtn.addEventListener('click', function () {
+        confirmBtn.addEventListener('click', async function () {
           if (!pendingForm) return;
-          // submit the original form (will perform server-side delete and redirect)
-          pendingForm.submit();
+          // perform AJAX POST and remove the chat item from DOM on success
+          const csrfInput = pendingForm.querySelector('input[name="csrfmiddlewaretoken"]');
+          const csrf = csrfInput ? csrfInput.value : null;
+          try {
+            const resp = await fetch(pendingForm.action, {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrf,
+              },
+              body: new URLSearchParams(new FormData(pendingForm)),
+            });
+            const data = await resp.json().catch(() => null);
+            if (resp.ok && data && data.ok) {
+              // remove the list item for this room
+              const item = pendingForm.closest('.chat-item');
+              if (item) item.remove();
+              if (bootstrapModal) bootstrapModal.hide();
+            } else {
+              // fallback: redirect back to inbox to refresh
+              window.location.reload();
+            }
+          } catch (err) {
+            window.location.reload();
+          }
         });
       }
     });

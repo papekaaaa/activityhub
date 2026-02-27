@@ -1,6 +1,7 @@
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
+from datetime import timedelta
 
 from post.models import Post
 from activity_register.models import ActivityRegistration
@@ -16,6 +17,110 @@ def _capacity_status_text(post: Post, reg_count: int) -> str:
     if remaining <= 0:
         return f"ตอนนี้กิจกรรมเต็มแล้ว (สมัคร {reg_count}/{cap})"
     return f"ตอนนี้สมัครแล้ว {reg_count}/{cap} เหลือ {remaining} ที่"
+
+
+def _registrant_names(post: Post, limit=10):
+    regs = (
+        ActivityRegistration.objects.filter(post=post, status=ActivityRegistration.Status.ACTIVE)
+        .select_related('user')[:limit]
+    )
+    names = [r.user.get_full_name() or r.user.email for r in regs if r.user]
+    return ", ".join(names)
+
+
+def _schedule_reminders_for_post(post: Post):
+    """Create scheduled Notification rows for a post:
+    - organizer: 3 days and 1 day before (OWNER_STATUS_REMINDER)
+    - savers: 3 days before (SAVED_REMINDER)
+    - registrants: 1 day before (REGISTER_REMINDER)
+    """
+    if not post.event_date:
+        return
+    today = timezone.localdate()
+    event_date = post.event_date.date() if hasattr(post.event_date, 'date') else post.event_date
+
+    # helper to create message including status and current count/names
+    cap = getattr(post, 'slots_available', None)
+    active_count = ActivityRegistration.objects.filter(post=post, status=ActivityRegistration.Status.ACTIVE).count()
+    status_text = _capacity_status_text(post, active_count)
+    names = _registrant_names(post)
+
+    # Organizer reminders (3d and 1d)
+    for days_before in (3, 1):
+        trigger = event_date - timedelta(days=days_before)
+        if trigger >= today:
+            Notification.objects.get_or_create(
+                user=post.organizer,
+                post=post,
+                kind=Notification.Kind.OWNER_STATUS_REMINDER,
+                trigger_date=trigger,
+                defaults={
+                    'title': post.title,
+                    'message': f"เตือนเจ้าของกิจกรรม {days_before} วันก่อนเริ่ม:\n{status_text}\n",
+                    'link_url': f"/post/{post.id}/",
+                },
+            )
+
+    # Savers (those who saved/bookmarked) — 3 days before
+    trigger_saved = event_date - timedelta(days=3)
+    if trigger_saved >= today:
+        saved_user_ids = post.saves.values_list('pk', flat=True)
+        for uid in saved_user_ids:
+            Notification.objects.get_or_create(
+                user_id=uid,
+                post=post,
+                kind=Notification.Kind.SAVED_REMINDER,
+                trigger_date=trigger_saved,
+                defaults={
+                    'title': post.title,
+                    'message': f"เตือน: เหลือเวลา 3 วันก่อนกิจกรรมเริ่ม\n{_capacity_status_text(post, active_count)}",
+                    'link_url': f"/post/{post.id}/",
+                },
+            )
+
+    # Registrants — 1 day before
+    trigger_reg = event_date - timedelta(days=1)
+    if trigger_reg >= today:
+        reg_user_ids = (
+            ActivityRegistration.objects.filter(post=post, user__isnull=False, status=ActivityRegistration.Status.ACTIVE)
+            .values_list('user_id', flat=True)
+            .distinct()
+        )
+        for uid in reg_user_ids:
+            Notification.objects.get_or_create(
+                user_id=uid,
+                post=post,
+                kind=Notification.Kind.REGISTER_REMINDER,
+                trigger_date=trigger_reg,
+                defaults={
+                    'title': post.title,
+                    'message': f"เตือนคุณ 1 วันก่อนกิจกรรม: {post.title}\n{_capacity_status_text(post, active_count)}",
+                    'link_url': f"/post/{post.id}/",
+                },
+            )
+
+
+def _schedule_reminder_for_registration(reg: ActivityRegistration):
+    """Schedule a 1-day-before reminder for a specific registrant."""
+    post = reg.post
+    if not post or not post.event_date or not reg.user:
+        return
+    today = timezone.localdate()
+    event_date = post.event_date.date() if hasattr(post.event_date, 'date') else post.event_date
+    trigger = event_date - timedelta(days=1)
+    if trigger < today:
+        return
+    Notification.objects.get_or_create(
+        user=reg.user,
+        post=post,
+        kind=Notification.Kind.REGISTER_REMINDER,
+        trigger_date=trigger,
+        defaults={
+            'title': post.title,
+            'message': f"เตือนคุณ 1 วันก่อนกิจกรรม: {post.title}\n{_capacity_status_text(post, ActivityRegistration.objects.filter(post=post, status=ActivityRegistration.Status.ACTIVE).count())}",
+            'link_url': f"/post/{post.id}/",
+        },
+    )
 
 
 # -------------------------
@@ -34,9 +139,12 @@ def notify_owner_when_full_or_cancel(sender, instance: ActivityRegistration, cre
 
     today = timezone.localdate()
 
+    # If a new active registration was created, schedule 1-day-before reminder for that registrant
+    if created and instance.status == ActivityRegistration.Status.ACTIVE:
+        _schedule_reminder_for_registration(instance)
+
     # แจ้งเตือนเมื่อมีคนยกเลิก (CANCELED)
     if instance.status == ActivityRegistration.Status.CANCELED:
-        from .models import Notification
         Notification.objects.get_or_create(
             user=post.organizer,
             post=post,
@@ -48,6 +156,11 @@ def notify_owner_when_full_or_cancel(sender, instance: ActivityRegistration, cre
                 "link_url": f"/post/{post.id}/",
             },
         )
+        # remove any scheduled 1-day reminder for this user
+        if instance.user:
+            Notification.objects.filter(
+                user=instance.user, post=post, kind=Notification.Kind.REGISTER_REMINDER
+            ).delete()
 
     # แจ้งเตือนเมื่อกิจกรรมเต็ม (นับเฉพาะ ACTIVE)
     cap = getattr(post, "slots_available", None)
@@ -69,6 +182,23 @@ def notify_owner_when_full_or_cancel(sender, instance: ActivityRegistration, cre
             "link_url": f"/post/{post.id}/",
         },
     )
+    # notify savers/bookmarkers immediately that the activity is full
+    saved_user_ids = post.saves.values_list('pk', flat=True)
+    names = _registrant_names(post)
+    for uid in saved_user_ids:
+        if uid == getattr(post.organizer, 'pk', None):
+            continue
+        Notification.objects.get_or_create(
+            user_id=uid,
+            post=post,
+            kind=Notification.Kind.SAVED_REMINDER,
+            trigger_date=today,
+            defaults={
+                'title': post.title,
+                'message': f"กิจกรรมเต็มแล้ว\n{status_text}\nผู้สมัคร: {names}",
+                'link_url': f"/post/{post.id}/",
+            },
+        )
 
 
 # -------------------------
@@ -95,6 +225,8 @@ def notify_users_when_post_updated(sender, instance: Post, created, **kwargs):
     if created:
         # ✅ แจ้งเตือนผู้ติดตามเมื่อมีโพสต์ใหม่
         _notify_followers_new_post(instance)
+        # schedule reminders for organizer/savers/registrants
+        _schedule_reminders_for_post(instance)
         return
 
     old = getattr(instance, "_old", None)
@@ -158,6 +290,17 @@ def notify_users_when_post_updated(sender, instance: Post, created, **kwargs):
         new_dt = instance.event_date.strftime("%d/%m/%Y %H:%M") if instance.event_date else "-"
         changed.append(f"วันเวลา (เดิม {old_dt} → ใหม่ {new_dt})")
 
+        # reschedule reminders for this post when event date changed
+        Notification.objects.filter(
+            post=instance,
+            kind__in=(
+                Notification.Kind.REGISTER_REMINDER,
+                Notification.Kind.SAVED_REMINDER,
+                Notification.Kind.OWNER_STATUS_REMINDER,
+            ),
+        ).delete()
+        _schedule_reminders_for_post(instance)
+
     if not changed:
         return
 
@@ -185,7 +328,7 @@ def notify_users_when_post_updated(sender, instance: Post, created, **kwargs):
             trigger_date=today,
             defaults={
                 "title": instance.title,
-                "message": f"เจ้าของกิจกรรมได้แก้ไขโพสต์: {change_text}\nกรุณาตรวจสอบรายละเอียดอีกครั้ง",
+                "message": f"เจ้าของกิจกรรมได้แก้ไขโพสต์: {change_text}\n",
                 "link_url": f"/post/{instance.id}/",
             },
         )

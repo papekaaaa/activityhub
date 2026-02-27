@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.urls import reverse
 from django.http import JsonResponse
@@ -292,7 +293,13 @@ def delete_chat_room_view(request, room_id):
     ✅ ลบห้องแชทของตัวเอง (ไม่กระทบคนอื่น)
     ลบ 2 ชั้น: ยืนยันจาก JS ก่อน แล้วค่อย POST
     """
-    room = get_object_or_404(ChatRoom, id=room_id)
+    room = ChatRoom.objects.filter(id=room_id).first()
+    if not room:
+        # respond with JSON for AJAX clients, otherwise redirect back to inbox
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({"ok": False, "error": "not_found"}, status=404)
+        messages.warning(request, "ไม่พบห้องแชทที่ต้องการดำเนินการ")
+        return redirect('chat:inbox')
     membership = ChatMembership.objects.filter(room=room, user=request.user).first()
 
     if not membership:
