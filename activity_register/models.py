@@ -113,6 +113,17 @@ class ActivityRegistration(models.Model):
         self.canceled_at = now
         self.cancel_undo_until = now + timezone.timedelta(minutes=5)
         self.save(update_fields=["status", "cancel_reason", "cancel_reason_other", "canceled_at", "cancel_undo_until"])
+        # ถ้ากิจกรรมนั้นมีห้องแชทกลุ่ม ให้ลบสมาชิกจากห้องนั้นทันที (ยกเว้นผู้สร้างโพสต์)
+        try:
+            from chat.models import ChatRoom, ChatMembership
+
+            if self.user and self.post:
+                room = ChatRoom.objects.filter(room_type='GROUP', post=self.post).first()
+                if room and self.post.organizer_id != (self.user.id if self.user else None):
+                    ChatMembership.objects.filter(room=room, user=self.user).delete()
+        except Exception:
+            # ปลอดภัยต่อการเกิด import cycle หรือข้อผิดพลาดอื่น ๆ
+            pass
 
     def undo_cancel(self) -> bool:
         now = timezone.now()
@@ -127,6 +138,16 @@ class ActivityRegistration(models.Model):
         self.canceled_at = None
         self.cancel_undo_until = None
         self.save(update_fields=["status", "cancel_reason", "cancel_reason_other", "canceled_at", "cancel_undo_until"])
+        # ย้อนกลับการยกเลิก: ถ้ามีห้องแชทกลุ่มสำหรับโพสต์นี้ ให้คืนสมาชิกกลับ (ยกเว้นผู้สร้างโพสต์)
+        try:
+            from chat.models import ChatRoom, ChatMembership
+
+            if self.user and self.post:
+                room = ChatRoom.objects.filter(room_type='GROUP', post=self.post).first()
+                if room and self.post.organizer_id != (self.user.id if self.user else None):
+                    ChatMembership.objects.get_or_create(room=room, user=self.user)
+        except Exception:
+            pass
         return True
 
     def finalize_cancel_if_expired(self) -> bool:
@@ -145,10 +166,19 @@ class ActivityRegistration(models.Model):
         self.cooldown_until = now + timezone.timedelta(hours=2)
         self.save(update_fields=["status", "cooldown_until"])
 
-        # เพิ่มจำนวน slots_available ของ post +1
-        if self.post and self.post.slots_available > 0:
-            self.post.slots_available += 1
-            self.post.save(update_fields=["slots_available"])
+        # ไม่แก้ไข `slots_available` ที่เป็นความจุของโพสต์
+        # (การลดจำนวนผู้สมัครจะทำให้การนับ ACTIVE registrations ลดลงโดยอัตโนมัติ)
+
+        # ตรวจสอบอีกครั้งซ้ำเพื่อความมั่นใจ: ลบสมาชิกห้องแชทถ้ายังอยู่ (ยกเว้นผู้สร้างโพสต์)
+        try:
+            from chat.models import ChatRoom, ChatMembership
+
+            if self.user and self.post:
+                room = ChatRoom.objects.filter(room_type='GROUP', post=self.post).first()
+                if room and self.post.organizer_id != (self.user.id if self.user else None):
+                    ChatMembership.objects.filter(room=room, user=self.user).delete()
+        except Exception:
+            pass
 
         return True
 

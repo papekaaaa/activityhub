@@ -178,33 +178,37 @@
       </button>
 
       {% if is_group and post %}
-        {% if post.image %}
-          <img src="{{ post.image.url }}" class="chat-header-avatar me-2" alt="{{ post.title }}">
-        {% else %}
-          <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
-        {% endif %}
-        <div>
-          <div class="fw-semibold">
-            {{ post.title }}
+        <a href="{% url 'post:post_detail' post.id %}" class="d-flex align-items-center text-decoration-none text-dark">
+          {% if post.image %}
+            <img src="{{ post.image.url }}" class="chat-header-avatar me-2" alt="{{ post.title }}">
+          {% else %}
+            <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
+          {% endif %}
+          <div>
+            <div class="fw-semibold">
+              {{ post.title }}
+            </div>
+            <div class="small text-muted">
+              แชทกลุ่มกิจกรรม
+            </div>
           </div>
-          <div class="small text-muted">
-            แชทกลุ่มกิจกรรม
-          </div>
-        </div>
+        </a>
       {% else %}
-        {% if other_user.profile.profile_picture %}
-          <img src="{{ other_user.profile.profile_picture.url }}" class="chat-header-avatar me-2" alt="{{ other_user.get_full_name }}">
-        {% else %}
-          <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
-        {% endif %}
-        <div>
-          <div class="fw-semibold">
-            {{ other_user.get_full_name|default:other_user.username }}
+        <a href="{% url 'profile_detail' other_user.email %}" class="d-flex align-items-center text-decoration-none text-dark">
+          {% if other_user.profile.profile_picture %}
+            <img src="{{ other_user.profile.profile_picture.url }}" class="chat-header-avatar me-2" alt="{{ other_user.get_full_name }}">
+          {% else %}
+            <img src="{% static 'images/default_profile.png' %}" class="chat-header-avatar me-2" alt="">
+          {% endif %}
+          <div>
+            <div class="fw-semibold">
+              {{ other_user.get_full_name|default:other_user.username }}
+            </div>
+            <div class="small text-muted">
+              ข้อความส่วนตัว
+            </div>
           </div>
-          <div class="small text-muted">
-            ข้อความส่วนตัว
-          </div>
-        </div>
+        </a>
       {% endif %}
     </div>
 
@@ -214,17 +218,19 @@
         <div class="chat-row {% if msg.sender == request.user %}me{% else %}other{% endif %}">
           <div class="chat-bubble-wrap">
             {% if msg.sender != request.user %}
-              {% if msg.sender.profile.profile_picture %}
-                <img src="{{ msg.sender.profile.profile_picture.url }}"
-                     class="chat-header-avatar"
-                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
-                     alt="{{ msg.sender.get_full_name }}">
-              {% else %}
-                <img src="{% static 'images/default_profile.png' %}"
-                     class="chat-header-avatar"
-                     style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
-                     alt="">
-              {% endif %}
+              <a href="{% url 'profile_detail' msg.sender.email %}" class="d-inline-block me-2">
+                {% if msg.sender.profile.profile_picture %}
+                  <img src="{{ msg.sender.profile.profile_picture.url }}"
+                       class="chat-header-avatar"
+                       style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
+                       alt="{{ msg.sender.get_full_name }}">
+                {% else %}
+                  <img src="{% static 'images/default_profile.png' %}"
+                       class="chat-header-avatar"
+                       style="width:32px;height:32px;border-radius:50%;object-fit:cover;"
+                       alt="">
+                {% endif %}
+              </a>
             {% endif %}
 
             <div>
@@ -251,7 +257,9 @@
               <!-- ✅ ชื่อซ้าย เวลาไทยขวา (บังคับ localtime) -->
               <div class="chat-meta">
                 <span class="chat-meta-name">
-                  {{ msg.sender.get_full_name|default:msg.sender.username }}
+                  <a href="{% url 'profile_detail' msg.sender.email %}" class="text-decoration-none text-dark">
+                    {{ msg.sender.get_full_name|default:msg.sender.username }}
+                  </a>
                 </span>
                 <span class="chat-meta-time">
                   {{ msg.created_at|localtime|date:"d/m/Y H:i" }}
@@ -330,6 +338,22 @@ document.addEventListener('DOMContentLoaded', () => {
     chatSocket.onmessage = function(e) {
       const data = JSON.parse(e.data);
       appendMessage(data);
+
+      // Update navbar chat badge in real-time by asking the chat-unread API
+      try {
+        fetch('/notifications/api/chat-unread/', { credentials: 'same-origin' })
+          .then(r => { if(!r.ok) throw new Error('bad'); return r.json(); })
+          .then(j => {
+            const chatBadge = document.getElementById('chatBadge');
+            if (!chatBadge) return;
+            const n = parseInt(j.chat_unread || 0, 10);
+            if (n > 0) { chatBadge.style.display = 'inline-block'; chatBadge.textContent = n; }
+            else { chatBadge.style.display = 'none'; }
+          })
+          .catch(err => { /* silently ignore */ });
+      } catch (err) {
+        /* ignore */
+      }
     };
 
     chatSocket.onclose = function(e) {

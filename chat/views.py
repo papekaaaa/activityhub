@@ -94,6 +94,7 @@ def inbox_view(request):
             'last_message': last_text,
             'last_time': last_time,
             'is_group': (room.room_type == 'GROUP'),
+            'unread_count': ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).count(),
         })
 
     # rooms_qs already ordered by last_time desc; keep current list order
@@ -125,6 +126,22 @@ def activity_chat_view(request, post_id):
         defaults={'is_admin': False},
     )
 
+    # เมื่อผู้ใช้เปิดห้อง ให้ทำเครื่องหมายข้อความที่ยังไม่อ่านเป็นอ่านแล้ว
+    try:
+        ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
+    except Exception:
+        pass
+
+    # และทำเครื่องหมาย Notification ของแชทนี้เป็นอ่านแล้ว (ถ้ามี)
+    try:
+        from notifications.models import Notification
+        if room.room_type == 'GROUP' and room.post_id:
+            Notification.objects.filter(user=request.user, kind=Notification.Kind.CHAT_MESSAGE, link_url=f"/chat/activity/{room.post_id}/", is_read=False).update(is_read=True)
+        elif room.room_type == 'DM':
+            Notification.objects.filter(user=request.user, kind=Notification.Kind.CHAT_MESSAGE, link_url__startswith="/chat/dm/", is_read=False).update(is_read=True)
+    except Exception:
+        pass
+
     # รองรับ POST แบบเดิม (ข้อความล้วน) เผื่อ fallback
     if request.method == "POST":
         text = request.POST.get("content", "").strip()
@@ -141,6 +158,18 @@ def activity_chat_view(request, post_id):
     messages_qs = ChatMessage.objects.filter(
         room=room
     ).select_related('sender').order_by('created_at')
+
+    # เมื่อเปิด DM ให้ทำเครื่องหมายข้อความที่ยังไม่อ่านเป็นอ่านแล้ว
+    try:
+        ChatMessage.objects.filter(room=room, is_read=False).exclude(sender=request.user).update(is_read=True)
+    except Exception:
+        pass
+
+    try:
+        from notifications.models import Notification
+        Notification.objects.filter(user=request.user, kind=Notification.Kind.CHAT_MESSAGE, link_url__startswith=f"/chat/dm/", is_read=False).update(is_read=True)
+    except Exception:
+        pass
 
     return render(
         request,
@@ -208,7 +237,7 @@ def dm_chat_view(request, email):
                 content=text,
                 attachment=file
             )
-        return redirect('chat:dm_chat', user_id=other_user.id)
+        return redirect('chat:dm_chat', email=other_user.email)
 
     messages_qs = ChatMessage.objects.filter(
         room=room

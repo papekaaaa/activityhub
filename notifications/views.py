@@ -35,11 +35,15 @@ def _capacity_status_text(post, reg_count: int | None = None) -> str:
         return "กิจกรรมนี้ไม่จำกัดจำนวน"
 
     if reg_count is None:
-        # ใช้ related_name='registrations' ที่คุณมีอยู่แล้ว
+        # นับเฉพาะ ACTIVE registrations เท่านั้น (ไม่รวมผู้ที่ยกเลิก)
         try:
-            reg_count = post.registrations.count()
+            from activity_register.models import ActivityRegistration
+            reg_count = post.registrations.filter(status=ActivityRegistration.Status.ACTIVE).count()
         except Exception:
-            reg_count = 0
+            try:
+                reg_count = post.registrations.count()
+            except Exception:
+                reg_count = 0
 
     remaining = cap - reg_count
     if remaining <= 0:
@@ -182,6 +186,28 @@ def api_list_notifications(request):
 
     unread_count = Notification.objects.filter(user=request.user, is_read=False).count()
     return JsonResponse({"unread": unread_count, "items": data})
+
+
+@login_required
+@require_GET
+def api_chat_unread(request):
+    """Return unread chat notification/message count for the current user."""
+    try:
+        # Prefer Notification rows for CHAT_MESSAGE
+        unread_notifications = Notification.objects.filter(user=request.user, kind=Notification.Kind.CHAT_MESSAGE, is_read=False).count()
+    except Exception:
+        unread_notifications = 0
+
+    # Also count unread ChatMessage rows as a fallback
+    try:
+        from chat.models import ChatMessage
+        unread_messages = ChatMessage.objects.filter(room__members=request.user, is_read=False).exclude(sender=request.user).count()
+    except Exception:
+        unread_messages = 0
+
+    # Use the max of both sources to be safe
+    unread = max(unread_notifications, unread_messages)
+    return JsonResponse({"chat_unread": unread})
 
 
 @login_required

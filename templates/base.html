@@ -227,7 +227,7 @@
       }
 
       async function loadNotifications(){
-        const res = await fetch("/notifications/api/list/");
+        const res = await fetch("/notifications/api/list/", { credentials: 'same-origin' });
         if(!res.ok) return;
 
         const data = await res.json();
@@ -242,6 +242,21 @@
             badge.style.display = "none";
           }
         }
+
+        // update chat badge based on returned items (count CHAT_MESSAGE unread)
+        try{
+          const chatBadge = document.getElementById('chatBadge');
+          if (chatBadge) {
+            const chatUnread = (data.items || []).filter(i => i.kind === 'CHAT_MESSAGE' && !i.is_read).length;
+            console.debug('loadNotifications: chatUnread from items=', chatUnread);
+            if (chatUnread > 0) {
+              chatBadge.style.display = 'inline-block';
+              chatBadge.textContent = chatUnread;
+            } else {
+              chatBadge.style.display = 'none';
+            }
+          }
+        }catch(e){ console.debug('loadNotifications chatBadge error', e); }
 
         // list
         const list = document.getElementById("notifList");
@@ -331,6 +346,31 @@
         }
 
         setInterval(loadNotifications, 60000);
+
+        // Poll chat unread count separately so chat icon updates even when modal not opened
+        async function loadChatUnread(){
+          try{
+            console.debug('loadChatUnread: calling /notifications/api/chat-unread/');
+            const r = await fetch('/notifications/api/chat-unread/', { credentials: 'same-origin' });
+            console.debug('loadChatUnread: response', r.status);
+            if(!r.ok) return;
+            const j = await r.json();
+            console.debug('loadChatUnread: payload', j);
+            const chatBadge = document.getElementById('chatBadge');
+            if(chatBadge){
+              const n = parseInt(j.chat_unread || 0, 10);
+              if(n > 0){
+                chatBadge.style.display = 'inline-block';
+                chatBadge.textContent = n;
+              } else {
+                chatBadge.style.display = 'none';
+              }
+            }
+          }catch(e){ console.error('loadChatUnread', e); }
+        }
+
+        loadChatUnread();
+        setInterval(loadChatUnread, 30000);
       });
     </script>
     {% endif %}
