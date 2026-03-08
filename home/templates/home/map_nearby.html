@@ -213,7 +213,7 @@
           const marker = L.marker([ev.lat, ev.lng], { icon: myIcon }).addTo(eventLayer);
 
           marker.bindPopup(`
-            <strong>${ev.title}</strong><br/>
+            <a href="/post/${ev.id}/" style="text-decoration:none;color:#1a3a6b;"><strong>${ev.title}</strong></a><br/>
             ${ev.location || ""}<br/>
             ระยะทางประมาณ ${d.toFixed(1)} กม.
           `);
@@ -487,7 +487,7 @@
         const bounds = [];
         EVENTS.forEach(ev => {
           const m = L.marker([ev.lat, ev.lng], { icon: myIcon }).addTo(allEventsLayer);
-          m.bindPopup(`<strong>${ev.title}</strong><br/>${ev.location || ''}<br/>${ev.date || ''}`);
+          m.bindPopup(`<a href="/post/${ev.id}/" style="text-decoration:none;color:#1a3a6b;"><strong>${ev.title}</strong></a><br/>${ev.location || ''}<br/>${ev.date || ''}`);
           bounds.push([ev.lat, ev.lng]);
         });
         allEventsLayer.addTo(map);

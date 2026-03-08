@@ -139,10 +139,17 @@
               <div class="small text-muted">
                 เหตุผล: {{ r.reason }} |
                 ผู้รายงาน: {{ r.reporter.get_full_name|default:r.reporter.username }}
-                {% if r.evidence_image %}
-                  | <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูปหลักฐาน</a>
-                {% endif %}
               </div>
+              {% if r.evidence_image %}
+                <button type="button" class="btn-evidence-view mt-1"
+                        onclick="openEvidenceModal('{{ r.evidence_image.url }}')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="vertical-align:-2px;margin-right:4px;">
+                    <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                    <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                  </svg>
+                  ดูรูปหลักฐาน
+                </button>
+              {% endif %}
             </div>
             <div class="d-flex gap-2">
               <form action="{% url 'handle_post_report_hide' r.id %}" method="post" style="margin:0;">
@@ -171,10 +178,17 @@
               <div class="small text-muted">
                 เหตุผล: {{ r.reason }} |
                 ผู้รายงาน: {{ r.reporter.get_full_name|default:r.reporter.username }}
-                {% if r.evidence_image %}
-                  | <a href="{{ r.evidence_image.url }}" target="_blank">ดูรูปหลักฐาน</a>
-                {% endif %}
               </div>
+              {% if r.evidence_image %}
+                <button type="button" class="btn-evidence-view mt-1"
+                        onclick="openEvidenceModal('{{ r.evidence_image.url }}')">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style="vertical-align:-2px;margin-right:4px;">
+                    <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                    <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
+                  </svg>
+                  ดูรูปหลักฐาน
+                </button>
+              {% endif %}
             </div>
             <div class="d-flex gap-2">
               <form action="{% url 'handle_user_report_reject' r.id %}" method="post" style="margin:0;">
@@ -192,6 +206,32 @@
         {% endfor %}
       </div>
     {% endif %}
+
+    <!-- Modal ดูรูปหลักฐาน -->
+    <div class="modal fade" id="evidenceModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content" style="border:none; border-radius:16px; overflow:hidden; background:#1a1a2e;">
+          <div class="modal-header" style="background:linear-gradient(135deg,#6f8bff,#5a6fd6); border:none; padding:0.75rem 1.25rem;">
+            <h5 class="modal-title" style="color:#fff; font-weight:600;">รูปหลักฐาน</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center" style="padding:1rem; background:#1a1a2e;">
+            <img id="evidenceModalImg" src="" alt="รูปหลักฐาน"
+                 style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:8px;">
+          </div>
+          <div class="modal-footer justify-content-center" style="background:#1a1a2e; border:none; padding:0.5rem 1rem 1rem;">
+            <a id="evidenceModalDownload" href="" target="_blank" class="btn"
+               style="background:#6f8bff; color:#fff; border-radius:999px; padding:0.4rem 1.5rem; font-weight:600;">
+              เปิดในแท็บใหม่
+            </a>
+            <button type="button" class="btn" data-bs-dismiss="modal"
+                    style="background:#ff6b6b; color:#fff; border-radius:999px; padding:0.4rem 1.5rem; font-weight:600;">
+              ปิด
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   {% else %}
   {# ============================ PART 2 : ยืนยันโพสต์ ============================ #}
@@ -379,6 +419,26 @@
     color: #8b1f1f;
   }
 
+  /* ปุ่มดูรูปหลักฐาน */
+  .btn-evidence-view {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, #6f8bff, #5a6fd6);
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 0.25rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-evidence-view:hover {
+    background: linear-gradient(135deg, #5a6fd6, #4a5dc0);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(111,139,255,0.35);
+  }
+
   @media (max-width: 768px) {
     .admin-row {
       flex-direction: column;
@@ -387,4 +447,13 @@
     }
   }
 </style>
+
+<script>
+function openEvidenceModal(url) {
+  document.getElementById('evidenceModalImg').src = url;
+  document.getElementById('evidenceModalDownload').href = url;
+  var modal = new bootstrap.Modal(document.getElementById('evidenceModal'));
+  modal.show();
+}
+</script>
 {% endblock %}

@@ -74,7 +74,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // popup ปกติเมื่อคลิก
     marker.bindPopup(`
-      <strong>${ev.title}</strong><br>
+      <a href="/post/${ev.id}/" style="text-decoration:none;color:#1a3a6b;"><strong>${ev.title}</strong></a><br>
       ${ev.location ? ev.location : ""}<br>
       ${ev.date ? ev.date : ""}
     `);

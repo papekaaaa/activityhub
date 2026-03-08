@@ -10,6 +10,10 @@
           <div class="card shadow-sm border-0 h-100" style="border-radius: 16px;">
             {% if post.image %}
               <img src="{{ post.image.url }}" class="card-img-top" style="height: 220px; object-fit: cover;">
+            {% else %}
+              <div class="card-img-top d-flex align-items-center justify-content-center" style="height:220px; background:#f2f2f2;">
+                <i class="fa-regular fa-image text-muted" style="font-size:3rem;"></i>
+              </div>
             {% endif %}
             <div class="card-body">
               <h5 class="fw-bold">{{ post.title }}</h5>

@@ -204,17 +204,8 @@
           </label>
         </div>
 
-        <!-- ปุ่ม บันทึก / ยกเลิก + ✅ ปิดรับสมัคร -->
+        <!-- ปุ่ม บันทึก / ยกเลิก -->
         <div class="d-flex gap-2">
-          {% if show_close_register_button %}
-            <form method="post" action="{% url 'post:close_registration' post.id %}" class="d-inline">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-outline-dark rounded-pill px-4 fw-semibold">
-                ปิดรับการสมัคร
-              </button>
-            </form>
-          {% endif %}
-
           <button type="button" class="btn-cancel" onclick="history.back()">ยกเลิก</button>
           <button type="submit" class="btn-save">บันทึก</button>
         </div>

@@ -5,7 +5,7 @@
 <div class="container mt-5">
   <h2 class="fw-semibold text-center mb-4">
     {% if selected_category %}
-      หมวดหมู่: {{ selected_category }}
+      ประเภท: {{ selected_category }}
     {% else %}
       ทุกกิจกรรม
     {% endif %}
@@ -15,7 +15,7 @@
   <div class="row row-cols-1 row-cols-md-3 g-4">
     {% for post in posts %}
     <div class="col">
-      <div class="card shadow-sm border-0 h-100">
+      <div class="card shadow-sm border-0 h-100 {% if not post.image %}card-no-img{% endif %}">
         {% if post.image %}
         <a href="{% url 'post:post_detail' post.id %}" class="text-decoration-none text-dark">
           <div class="activity-img-wrap">
@@ -24,10 +24,10 @@
         </a>
         {% endif %}
 
-        <div class="card-body">
+        <div class="card-body {% if not post.image %}d-flex flex-column justify-content-center{% endif %}">
           <a href="{% url 'post:post_detail' post.id %}" class="text-decoration-none text-dark">
-            <h5 class="card-title">{{ post.title }}</h5>
-            <p class="card-text text-muted">{{ post.description|truncatechars:100 }}</p>
+            <h5 class="card-title {% if not post.image %}fs-4 fw-bold{% endif %}">{{ post.title }}</h5>
+            <p class="card-text text-muted {% if not post.image %}mb-0{% endif %}">{{ post.description|truncatechars:150 }}</p>
           </a>
         </div>
         <div class="card-footer bg-white border-0 d-flex align-items-center">
@@ -60,7 +60,7 @@
 /* ทำให้รูปทุกการ์ด "สมส่วน" และสูงเท่ากัน */
 .activity-img-wrap{
   width: 100%;
-  aspect-ratio: 4 / 3;      /* เปลี่ยนเป็น 16/9 ได้ถ้าอยากกว้างขึ้น */
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   background: #f2f2f2;
 }
@@ -69,6 +69,23 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* การ์ดที่ไม่มีรูปภาพ — ให้ข้อความอยู่กลางและสวยงาม */
+.card-no-img {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+  border-left: 4px solid #4a7cff;
+}
+.card-no-img .card-body {
+  min-height: 200px;
+  padding: 2rem 1.5rem;
+}
+.card-no-img .card-title {
+  color: #1a3a6b;
+}
+.card-no-img .card-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
 }
 </style>
 {% endblock %}
